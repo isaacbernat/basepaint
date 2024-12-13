@@ -9,7 +9,7 @@ from datetime import datetime
 def create_pdf_from_images(input_directory, output_pdf):
     # Set up the PDF canvas with A4 size
     c = canvas.Canvas(output_pdf, pagesize=A4)
-    
+
     # A4 dimensions in points (1 point = 1/72 inch)
     page_width, page_height = A4
     
@@ -37,10 +37,12 @@ def create_pdf_from_images(input_directory, output_pdf):
     
     # Process each image
     for page_num, image_file in enumerate(image_files, 1):
+        if page_num % 10 == 0:
+            print(f"Processing image {page_num}")
         image_path = os.path.join(input_directory, image_file)
         
         # Add title with datetime and page number
-        title = f"{formatted_time} - Page {page_num}"
+        title = f"{formatted_time} - Day {page_num}"
         c.setFont("Helvetica-Bold", 14)
         c.drawString(x_pos, page_height - 50, title)
         
@@ -57,9 +59,17 @@ def create_pdf_from_images(input_directory, output_pdf):
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    output_pdf = os.path.join(script_dir, "output.pdf")
     img_dir = os.path.join(script_dir, "images")
+
+    # Find the last image number
+    image_files = [f for f in os.listdir(img_dir) if f.lower().endswith('.jpg')]
+    if not image_files:
+        print("No images found in the images directory")
+        exit(1)
+
+    # Extract the highest day number from filenames
+    last_day = max(int(f.split('_')[2].split('.')[0]) for f in image_files)
+    output_pdf = os.path.join(script_dir, f"basepaint_until_{last_day:04d}.pdf")
 
     create_pdf_from_images(img_dir, output_pdf)
     print(f"PDF has been created: {output_pdf}")
