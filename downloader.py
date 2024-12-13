@@ -18,14 +18,14 @@ images_dir = os.path.join(script_dir, "images")
 os.makedirs(images_dir, exist_ok=True)
 
 for day in range(1, LATEST):
-  new_path = os.path.join(images_dir, f"basepaint_day_{day:04d}.jpg")
-  if os.path.exists(new_path):
+  path = os.path.join(images_dir, f"{day:04d}.jpg")
+  if os.path.exists(path):
     print(f"Image {day:04d} already exists, skipping...")
     continue
 
   image_url = f"https://basepaint.xyz/api/art/image?day={day}"  # jpg image 2560x2560
   # available in png too at https://basepaint.net/v3/{day:04d}.png
-  download_image(image_url, new_path)
+  download_image(image_url, path)
   if day % 10 == 0:
     print(f"Downloading image {day}")
 
