@@ -3,6 +3,8 @@ import os
 import csv
 import re
 
+
+# prerreq, download https://basepaint.xyz/gallery as gallery.html first
 def parse_gallery_titles(html_file, csv_file):
     with open(html_file, 'r', encoding='utf-8') as f:
         soup = BeautifulSoup(f.read(), 'html.parser')
