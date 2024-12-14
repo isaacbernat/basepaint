@@ -18,7 +18,21 @@ def parse_gallery_titles(html_file, csv_file):
             match = re.match(r'Day #(\d+): (.*)', text)
             if match:
                 num, title = match.groups()
-                entries.append((int(num), title.strip()))  # Convert num to int for proper sorting
+                
+                # Find the color palette div that follows this title
+                palette_div = div.find_next('div', class_='inline-flex flex-row gap-0.5 pt-0.5 items-start')
+                colors = []
+                if palette_div:
+                    color_divs = palette_div.find_all('div', class_='w-4 h-4 sm:block hidden border border-1 border-gray-700 rounded-sm')
+                    for color_div in color_divs:
+                        style = color_div.get('style', '')
+                        color_match = re.search(r'background-color: rgb\((.*?)\)', style)
+                        if color_match:
+                            colors.append(color_match.group(1))
+                
+                # Join colors with semicolon for CSV storage
+                palette = ';'.join(colors) if colors else ''
+                entries.append((int(num), title.strip(), palette))  # Add palette to entry
         
         # Sort entries by number
         entries.sort(key=lambda x: x[0])
@@ -26,7 +40,7 @@ def parse_gallery_titles(html_file, csv_file):
         # Write sorted entries to CSV
         with open(csv_file, 'w', newline='', encoding='utf-8') as csvf:
             writer = csv.writer(csvf)
-            writer.writerow(['NUM', 'TITLE'])  # Write header
+            writer.writerow(['NUM', 'TITLE', 'PALETTE'])  # Add PALETTE to header
             writer.writerows(entries)
 
 if __name__ == "__main__":
