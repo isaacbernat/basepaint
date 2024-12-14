@@ -11,7 +11,10 @@ def load_titles(csv_path):
     with open(csv_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            titles[int(row['NUM'])] = row['TITLE']
+            titles[int(row['NUM'])] = {
+                'title': row['TITLE'],
+                'palette': [tuple(map(int, color.strip().split(','))) for color in row['PALETTE'].split(';')]
+            }
     return titles
 
 def create_pdf_from_images(input_directory, output_pdf, titles):
@@ -47,10 +50,32 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
             print(f"Processing image {day_num}")
         image_path = os.path.join(input_directory, image_file)
         
+        # Get title and palette data
+        title_data = titles.get(day_num, {'title': '', 'palette': []})
+        
         # Add title with day number and title from CSV
-        title = f"Day {day_num}: {titles.get(day_num, '')}"
+        title = f"Day {day_num}: {title_data['title']}"
         c.setFont("Helvetica-Bold", 14)
+        title_width = c.stringWidth(title, "Helvetica-Bold", 14)
         c.drawString(x_pos, page_height - 50, title)
+        
+        # Draw color squares
+        square_size = c.stringWidth("O", "Helvetica-Bold", 14)  # Size of capital O
+        square_spacing = square_size * 1.2  # Add some spacing between squares
+        palette = title_data['palette']
+        total_palette_width = len(palette) * square_spacing
+        start_x = page_width - x_pos - total_palette_width
+        
+        for i, color in enumerate(palette):
+            c.setFillColorRGB(color[0]/255, color[1]/255, color[2]/255)
+            c.setStrokeColorRGB(0, 0, 0)  # Set border color to black
+            c.rect(start_x + (i * square_spacing), 
+                  page_height - 50 - square_size/2, 
+                  square_size, square_size, 
+                  fill=1, stroke=1)  # stroke=1 to draw the border
+        
+        # Reset fill color to black for subsequent text
+        c.setFillColorRGB(0, 0, 0)
         
         # Add image
         c.drawImage(image_path, 
