@@ -19,6 +19,19 @@ def parse_gallery_titles(html_file, csv_file):
             if match:
                 num, title = match.groups()
                 
+                # Find stats div for minted and artists counts
+                stats_div = div.find_next('div', class_='hidden sm:block text-sm text-gray-400')
+                minted_count = 0
+                artists_count = 0
+                if stats_div:
+                    stats_text = stats_div.text.strip()
+                    minted_match = re.search(r'(\d+) minted', stats_text)
+                    artists_match = re.search(r'(\d+) artists', stats_text)
+                    if minted_match:
+                        minted_count = int(minted_match.group(1))
+                    if artists_match:
+                        artists_count = int(artists_match.group(1))
+                
                 # Find the color palette div that follows this title
                 palette_div = div.find_next('div', class_='inline-flex flex-row gap-0.5 pt-0.5 items-start')
                 colors = []
@@ -32,7 +45,7 @@ def parse_gallery_titles(html_file, csv_file):
                 
                 # Join colors with semicolon for CSV storage
                 palette = ';'.join(colors) if colors else ''
-                entries.append((int(num), title.strip(), palette))  # Add palette to entry
+                entries.append((int(num), title.strip(), palette, minted_count, artists_count))  # Add new stats
         
         # Sort entries by number
         entries.sort(key=lambda x: x[0])
@@ -40,7 +53,7 @@ def parse_gallery_titles(html_file, csv_file):
         # Write sorted entries to CSV
         with open(csv_file, 'w', newline='', encoding='utf-8') as csvf:
             writer = csv.writer(csvf)
-            writer.writerow(['NUM', 'TITLE', 'PALETTE'])  # Add PALETTE to header
+            writer.writerow(['NUM', 'TITLE', 'PALETTE', 'MINTED', 'ARTISTS'])  # Add new columns
             writer.writerows(entries)
 
 if __name__ == "__main__":
