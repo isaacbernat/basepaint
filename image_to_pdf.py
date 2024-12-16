@@ -13,7 +13,9 @@ def load_titles(csv_path):
         for row in reader:
             titles[int(row['NUM'])] = {
                 'title': row['TITLE'],
-                'palette': [tuple(map(int, color.strip().split(','))) for color in row['PALETTE'].split(';')]
+                'palette': [tuple(map(int, color.strip().split(','))) for color in row['PALETTE'].split(';')],
+                'minted': row.get('MINTED', 0),
+                'artists': row.get('ARTISTS', 0)
             }
     return titles
 
@@ -84,6 +86,57 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
                    width=scaled_width, 
                    height=scaled_height)
         
+        # Add minted and artists information
+        c.setFont("Helvetica", 12)
+        minted_text = f"{title_data.get('minted', 0)} minted"
+        artists_text = f"{title_data.get('artists', 0)} artists"
+        
+        # Position text below the image
+        text_y = page_height - scaled_height - 90  # 20 pixels below the image
+        
+        # Draw minted count (left-aligned)
+        c.drawString(x_pos, text_y, minted_text)
+        
+        # Draw artists count (right-aligned)
+        artists_width = c.stringWidth(artists_text, "Helvetica", 12)
+        c.drawString(page_width - x_pos - artists_width, text_y, artists_text)
+        
+        # Add attribution footer
+        footer_y_base = 40  # Base position from bottom of page
+        line_spacing = 15  # Space between lines
+        
+        # First line - canvas URL
+        c.setFont("Helvetica", 10)
+        prefix_text = "Artwork generated collaboratively at "
+        url_text = f"https://basepaint.xyz/canvas/{day_num}"
+        
+        prefix_width = c.stringWidth(prefix_text, "Helvetica", 10)
+        c.setFont("Courier", 10)
+        url_width = c.stringWidth(url_text, "Courier", 10)
+        total_width = prefix_width + url_width
+        
+        start_x = (page_width - total_width) / 2
+        c.setFont("Helvetica", 10)
+        c.drawString(start_x, footer_y_base, prefix_text)
+        c.setFont("Courier", 10)
+        c.drawString(start_x + prefix_width, footer_y_base, url_text)
+        
+        # Second line - archive info
+        c.setFont("Helvetica", 10)
+        archive_prefix = "Archive available at "
+        archive_url = "https://github.com/isaacbernat/basepaint"
+        
+        archive_prefix_width = c.stringWidth(archive_prefix, "Helvetica", 10)
+        c.setFont("Courier", 10)
+        archive_url_width = c.stringWidth(archive_url, "Courier", 10)
+        total_archive_width = archive_prefix_width + archive_url_width
+        
+        start_archive_x = (page_width - total_archive_width) / 2
+        c.setFont("Helvetica", 10)
+        c.drawString(start_archive_x, footer_y_base - line_spacing, archive_prefix)
+        c.setFont("Courier", 10)
+        c.drawString(start_archive_x + archive_prefix_width, footer_y_base - line_spacing, archive_url)
+        
         c.showPage()
     
     c.save()
@@ -91,7 +144,7 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     img_dir = os.path.join(script_dir, "images")
-    csv_path = os.path.join(script_dir, "gallery_titles.csv")
+    csv_path = os.path.join(script_dir, "metadata.csv")
 
     if not os.path.exists(csv_path):
         print(f"Error: {csv_path} not found")
