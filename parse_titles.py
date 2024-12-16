@@ -59,7 +59,7 @@ def parse_gallery_titles(html_file, csv_file):
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     gallery_path = os.path.join(script_dir, "gallery.html")
-    csv_path = os.path.join(script_dir, "gallery_titles.csv")
+    csv_path = os.path.join(script_dir, "metadata.csv")
     
     if not os.path.exists(gallery_path):
         print(f"Error: {gallery_path} not found")
