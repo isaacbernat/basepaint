@@ -5,6 +5,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 from PIL import Image
 import os
 import csv
+from datetime import datetime
 
 def load_titles(csv_path):
     titles = {}
@@ -15,7 +16,9 @@ def load_titles(csv_path):
                 'title': row['TITLE'],
                 'palette': [tuple(map(int, color.strip().split(','))) for color in row['PALETTE'].split(';')],
                 'minted': row.get('MINTED', 0),
-                'artists': row.get('ARTISTS', 0)
+                'artists': row.get('ARTISTS', 0),
+                'proposer': row.get('PROPOSER', ''),
+                'MINT_DATE': row.get('MINT_DATE', '')
             }
     return titles
 
@@ -79,20 +82,42 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
         # Reset fill color to black for subsequent text
         c.setFillColorRGB(0, 0, 0)
         
-        # Add image
-        c.drawImage(image_path, 
-                   x_pos,  # center horizontally
-                   page_height - scaled_height - 70,  # position below title
-                   width=scaled_width, 
-                   height=scaled_height)
-        
-        # Add minted and artists information
+        # Add day and date information
         c.setFont("Helvetica", 12)
-        minted_text = f"{title_data.get('minted', 0)} minted"
-        artists_text = f"{title_data.get('artists', 0)} artists"
+        day_text = f"Day: {day_num}"
+        mint_timestamp = title_data.get('MINT_DATE', '')
+        formatted_mint_date = datetime.fromtimestamp(int(mint_timestamp)).strftime('%Y-%m-%d') if mint_timestamp else ''
+        date_text = f"Mint date: {formatted_mint_date}"
         
-        # Position text below the image
-        text_y = page_height - scaled_height - 90  # 20 pixels below the image
+        # Start position for first line (day/date)
+        first_line_y = page_height - scaled_height - 90
+        
+        # Draw day (left-aligned)
+        c.drawString(x_pos, first_line_y, day_text)
+        
+        # Draw date (right-aligned)
+        date_width = c.stringWidth(date_text, "Helvetica", 12)
+        c.drawString(page_width - x_pos - date_width, first_line_y, date_text)
+        
+        # Add theme and proposer information (second line)
+        theme_text = f"Theme: {title_data.get('title', '')}"
+        proposer_text = f"Proposer: {title_data.get('proposer', '')}"
+        
+        theme_y = first_line_y - 20  # 20 pixels below first line
+        
+        # Draw theme (left-aligned)
+        c.drawString(x_pos, theme_y, theme_text)
+        
+        # Draw proposer (right-aligned)
+        proposer_width = c.stringWidth(proposer_text, "Helvetica", 12)
+        c.drawString(page_width - x_pos - proposer_width, theme_y, proposer_text)
+        
+        # Add minted and contributors information (third line)
+        minted_text = f"Minted: {title_data.get('minted', 0)}"
+        artists_text = f"Contributors: {title_data.get('artists', 0)}"
+        
+        # Position minted/contributors text below theme
+        text_y = theme_y - 20  # 20 pixels below second line
         
         # Draw minted count (left-aligned)
         c.drawString(x_pos, text_y, minted_text)
@@ -100,6 +125,13 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
         # Draw artists count (right-aligned)
         artists_width = c.stringWidth(artists_text, "Helvetica", 12)
         c.drawString(page_width - x_pos - artists_width, text_y, artists_text)
+        
+        # Add image
+        c.drawImage(image_path, 
+                   x_pos,  # center horizontally
+                   page_height - scaled_height - 70,  # position below title
+                   width=scaled_width, 
+                   height=scaled_height)
         
         # Add attribution footer
         footer_y_base = 40  # Base position from bottom of page
