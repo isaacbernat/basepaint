@@ -126,6 +126,21 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
         artists_width = c.stringWidth(artists_text, "Helvetica", 12)
         c.drawString(page_width - x_pos - artists_width, text_y, artists_text)
         
+        # Add palette info (fourth line)
+        total_palette_width = len(palette) * square_spacing   
+        palette_text = "Palette: "     
+        c.drawString(x_pos, text_y - 20, palette_text)
+        for i, color in enumerate(palette):
+            c.setFillColorRGB(color[0]/255, color[1]/255, color[2]/255)
+            c.setStrokeColorRGB(0, 0, 0)  # Set border color to black
+            c.rect(x_pos + (i * square_spacing) + c.stringWidth(palette_text, "Helvetica", 12),
+                  text_y - 20, 
+                  square_size, square_size, 
+                  fill=1, stroke=1)  # stroke=1 to draw the border
+
+        # Reset fill color to black for subsequent text
+        c.setFillColorRGB(0, 0, 0)
+
         # Add image
         c.drawImage(image_path, 
                    x_pos,  # center horizontally
