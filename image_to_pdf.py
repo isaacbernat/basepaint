@@ -22,6 +22,21 @@ def load_titles(csv_path):
             }
     return titles
 
+def count_pixels(image_path, palette):
+    image = Image.open(image_path)
+    image = image.convert("RGB")  # Ensure image is in RGB mode
+    pixel_count = [0] * len(palette)
+
+    color_dict = {tuple(color): index for index, color in enumerate(palette)}
+
+    for pixel in image.getdata():
+        if pixel in color_dict:
+            pixel_count[color_dict[pixel]] += 1
+
+    total_pixels = image.width * image.height
+    percentage_count = [(count / total_pixels) * 100 for count in pixel_count]
+    return percentage_count
+
 def create_pdf_from_images(input_directory, output_pdf, titles):
     # Set up the PDF canvas with A4 size
     c = canvas.Canvas(output_pdf, pagesize=A4)
@@ -78,7 +93,7 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
                   page_height - 50 - square_size/2, 
                   square_size, square_size, 
                   fill=1, stroke=1)  # stroke=1 to draw the border
-        
+
         # Reset fill color to black for subsequent text
         c.setFillColorRGB(0, 0, 0)
         
@@ -127,19 +142,25 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
         c.drawString(page_width - x_pos - artists_width, text_y, artists_text)
         
         # Add palette info (fourth line)
-        total_palette_width = len(palette) * square_spacing   
-        palette_text = "Palette: "     
+        pixel_counts = count_pixels(image_path, palette)
+        palette_text = "Palette:"
         c.drawString(x_pos, text_y - 20, palette_text)
+        palette_text_padding = c.stringWidth(palette_text, "Helvetica", 12)
         for i, color in enumerate(palette):
+            pixel_counts_text = f"  {pixel_counts[i]:.2f}% "
+            c.drawString(
+                x_pos + ((i) * square_spacing) + palette_text_padding,
+                text_y - 20,
+                pixel_counts_text)
+            palette_text_padding += c.stringWidth(pixel_counts_text, "Helvetica", 12)
             c.setFillColorRGB(color[0]/255, color[1]/255, color[2]/255)
             c.setStrokeColorRGB(0, 0, 0)  # Set border color to black
-            c.rect(x_pos + (i * square_spacing) + c.stringWidth(palette_text, "Helvetica", 12),
+            c.rect(x_pos + (i * square_spacing) + palette_text_padding,
                   text_y - 20, 
-                  square_size, square_size, 
+                  square_size, square_size,
                   fill=1, stroke=1)  # stroke=1 to draw the border
-
-        # Reset fill color to black for subsequent text
-        c.setFillColorRGB(0, 0, 0)
+            # Reset fill color to black for subsequent text
+            c.setFillColorRGB(0, 0, 0)
 
         # Add image
         c.drawImage(image_path, 
