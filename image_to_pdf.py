@@ -146,8 +146,9 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
         palette_text = "Palette:"
         c.drawString(x_pos, text_y - 20, palette_text)
         palette_text_padding = c.stringWidth(palette_text, "Helvetica", 12)
-        for i, color in enumerate(palette):
-            pixel_counts_text = f"  {pixel_counts[i]:.2f}% "
+        sorted_palette = sorted(zip(pixel_counts, palette), key=lambda x: x[0], reverse=True)
+        for i, (count, color) in enumerate(sorted_palette):
+            pixel_counts_text = f"  {count:.2f}% "
             c.drawString(
                 x_pos + ((i) * square_spacing) + palette_text_padding,
                 text_y - 20,
@@ -161,9 +162,8 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
                   fill=1, stroke=1)  # stroke=1 to draw the border
             # Reset fill color to black for subsequent text
             c.setFillColorRGB(0, 0, 0)
-
         # Add image
-        c.drawImage(image_path, 
+        c.drawImage(image_path,
                    x_pos,  # center horizontally
                    page_height - scaled_height - 70,  # position below title
                    width=scaled_width, 
