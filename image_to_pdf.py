@@ -108,11 +108,17 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
         first_line_y = page_height - scaled_height - 90
         
         # Draw day (left-aligned)
-        c.drawString(x_pos, first_line_y, day_text)
+        c.setFont("Helvetica-Oblique", 12)  # Italic for descriptive part
+        c.drawString(x_pos, first_line_y, "Day:")
+        c.setFont("Helvetica", 12)  # Regular font for the rest
+        c.drawString(x_pos + c.stringWidth("Day:", "Helvetica-Oblique", 12), first_line_y, f" {day_num}")
         
         # Draw date (right-aligned)
-        date_width = c.stringWidth(date_text, "Helvetica", 12)
-        c.drawString(page_width - x_pos - date_width, first_line_y, date_text)
+        c.setFont("Helvetica-Oblique", 12)  # Italic for descriptive part
+        date_width = c.stringWidth("Mint date:", "Helvetica-Oblique", 12)
+        c.drawString(page_width - x_pos - date_width - c.stringWidth(formatted_mint_date, "Helvetica", 12), first_line_y, "Mint date:")
+        c.setFont("Helvetica", 12)  # Regular font for the rest
+        c.drawString(page_width - x_pos - c.stringWidth(formatted_mint_date, "Helvetica", 12), first_line_y, f" {formatted_mint_date}")
         
         # Add theme and proposer information (second line)
         theme_text = f"Theme: {title_data.get('title', '')}"
@@ -121,11 +127,17 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
         theme_y = first_line_y - 20  # 20 pixels below first line
         
         # Draw theme (left-aligned)
-        c.drawString(x_pos, theme_y, theme_text)
+        c.setFont("Helvetica-Oblique", 12)  # Italic for descriptive part
+        c.drawString(x_pos, theme_y, "Theme:")
+        c.setFont("Helvetica", 12)  # Regular font for the rest
+        c.drawString(x_pos + c.stringWidth("Theme:", "Helvetica-Oblique", 12), theme_y, f" {title_data.get('title', '')}")
         
         # Draw proposer (right-aligned)
-        proposer_width = c.stringWidth(proposer_text, "Helvetica", 12)
-        c.drawString(page_width - x_pos - proposer_width, theme_y, proposer_text)
+        c.setFont("Helvetica-Oblique", 12)  # Italic for descriptive part
+        proposer_width = c.stringWidth("Proposer:", "Helvetica-Oblique", 12)
+        c.drawString(page_width - x_pos - proposer_width - c.stringWidth(title_data.get('proposer', ''), "Helvetica", 12), theme_y, "Proposer:")
+        c.setFont("Helvetica", 12)  # Regular font for the rest
+        c.drawString(page_width - x_pos - c.stringWidth(title_data.get('proposer', ''), "Helvetica", 12), theme_y, f" {title_data.get('proposer', '')}")
         
         # Add minted and contributors information (third line)
         minted_text = f"Minted: {title_data.get('minted', 0)}"
@@ -135,16 +147,24 @@ def create_pdf_from_images(input_directory, output_pdf, titles):
         text_y = theme_y - 20  # 20 pixels below second line
         
         # Draw minted count (left-aligned)
-        c.drawString(x_pos, text_y, minted_text)
+        c.setFont("Helvetica-Oblique", 12)  # Italic for descriptive part
+        c.drawString(x_pos, text_y, "Minted:")
+        c.setFont("Helvetica", 12)  # Regular font for the rest
+        c.drawString(x_pos + c.stringWidth("Minted:", "Helvetica-Oblique", 12), text_y, f" {title_data.get('minted', 0)}")
         
         # Draw artists count (right-aligned)
-        artists_width = c.stringWidth(artists_text, "Helvetica", 12)
-        c.drawString(page_width - x_pos - artists_width, text_y, artists_text)
+        c.setFont("Helvetica-Oblique", 12)  # Italic for descriptive part
+        artists_width = c.stringWidth("Contributors:", "Helvetica-Oblique", 12)
+        c.drawString(page_width - x_pos - artists_width - c.stringWidth(str(title_data.get('artists', 0)), "Helvetica", 12), text_y, "Contributors:")
+        c.setFont("Helvetica", 12)  # Regular font for the rest
+        c.drawString(page_width - x_pos - c.stringWidth(str(title_data.get('artists', 0)), "Helvetica", 12), text_y, f" {title_data.get('artists', 0)}")
         
         # Add palette info (fourth line)
         pixel_counts = count_pixels(image_path, palette)
         palette_text = "Palette:"
+        c.setFont("Helvetica-Oblique", 12)  # Italic for descriptive part
         c.drawString(x_pos, text_y - 20, palette_text)
+        c.setFont("Helvetica", 12)  # Regular font for the rest
         palette_text_padding = c.stringWidth(palette_text, "Helvetica", 12)
         sorted_palette = sorted(zip(pixel_counts, palette), key=lambda x: x[0], reverse=True)
         for i, (count, color) in enumerate(sorted_palette):
