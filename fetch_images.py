@@ -1,6 +1,6 @@
 import requests
 import os
-LATEST = 491
+LATEST = 12
 
 def download_image(url, filename):
   response = requests.get(url, stream=True)
@@ -20,11 +20,10 @@ os.makedirs(images_dir, exist_ok=True)
 for day in range(1, LATEST):
   path = os.path.join(images_dir, f"{day:04d}.jpg")
   if os.path.exists(path):
-    print(f"Image {day:04d} already exists, skipping...")
     continue
 
   image_url = f"https://basepaint.xyz/api/art/image?day={day}"  # jpg image 2560x2560
-  # available in png too at https://basepaint.net/v3/{day:04d}.png
+  # available in png at lower res too at https://basepaint.net/v3/{day:04d}.png
   download_image(image_url, path)
   if day % 10 == 0:
     print(f"Downloading image {day}")
