@@ -93,6 +93,9 @@ def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_
     for i, (count, color) in enumerate(sorted_palette):
         pixel_counts_text = f" {count:.2f}% "
         c.drawString(x_pos + ((i) * 20) + palette_text_padding, first_line_y - 60, pixel_counts_text)
+        c.setFont("Courier", 12)
+        c.drawString(x_pos + ((i) * 20) + palette_text_padding, first_line_y - 80, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
+        c.setFont("Helvetica", 12)
         palette_text_padding += c.stringWidth(pixel_counts_text, "Helvetica", 12)
         c.setFillColorRGB(color[0] / 255, color[1] / 255, color[2] / 255)
         c.rect(x_pos + (i * 20) + palette_text_padding, first_line_y - 60, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
@@ -108,6 +111,7 @@ def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
     scaled_width = scaled_height = img_size * scale_factor
     x_pos = (page_width - scaled_width) / 2
     
+    print("Creating PDF...")
     for page_num, image_file in enumerate(image_files, 1):  # Process each image
         day_num = int(image_file.split('.')[0])  # Extract day number (assuming XXXX.jpg)
         if page_num % 12 == 0:
