@@ -55,6 +55,7 @@ def create_metadata_csv(max_day: int):
         if mode == 'w':
             writer.writeheader()
         
+        print("Fetching metadata...")
         for day in range(1, max_day + 1):
             if day in existing_days:
                 print(f"Skipping Day {day}: Already in CSV")
