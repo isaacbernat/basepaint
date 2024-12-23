@@ -1,6 +1,7 @@
 import requests
 import os
-LATEST = 12
+LATEST = 500
+
 
 def download_image(url, filename):
   response = requests.get(url, stream=True)
@@ -17,6 +18,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 images_dir = os.path.join(script_dir, "images")
 os.makedirs(images_dir, exist_ok=True)
 
+print("Fetching images...")
 for day in range(1, LATEST):
   path = os.path.join(images_dir, f"{day:04d}.jpg")
   if os.path.exists(path):

@@ -92,14 +92,17 @@ def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_
     sorted_palette = sorted(zip(pixel_counts, titles.get(day_num, {}).get('palette', [])), key=lambda x: x[0], reverse=True)
     for i, (count, color) in enumerate(sorted_palette):
         pixel_counts_text = f" {count:.2f}% "
-        c.drawString(x_pos + ((i) * 20) + palette_text_padding, first_line_y - 60, pixel_counts_text)
+        line_offset = - 40 if i >= 5 else 0
+        c.drawString(x_pos + ((i % 5) * 20) + palette_text_padding, first_line_y - 60 + line_offset, pixel_counts_text)
         c.setFont("Courier", 12)
-        c.drawString(x_pos + ((i) * 20) + palette_text_padding, first_line_y - 80, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
+        c.drawString(x_pos + ((i % 5) * 20) + palette_text_padding, first_line_y - 80 + line_offset, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
         c.setFont("Helvetica", 12)
-        palette_text_padding += c.stringWidth(pixel_counts_text, "Helvetica", 12)
+        palette_text_padding += 50
         c.setFillColorRGB(color[0] / 255, color[1] / 255, color[2] / 255)
-        c.rect(x_pos + (i * 20) + palette_text_padding, first_line_y - 60, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
+        c.rect(x_pos + ((i % 5) * 20) + palette_text_padding, first_line_y - 60 + line_offset, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
         c.setFillColorRGB(0, 0, 0)  # Reset fill color to black for subsequent text
+        if i == 4:
+            palette_text_padding = left_column_italic_offset
 
 
 def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
@@ -114,9 +117,10 @@ def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
     print("Creating PDF...")
     for page_num, image_file in enumerate(image_files, 1):  # Process each image
         day_num = int(image_file.split('.')[0])  # Extract day number (assuming XXXX.jpg)
-        if page_num % 12 == 0:
+        if page_num < 0:
+            continue
+        if page_num % 10 == 0:
             print(f"Processing image {day_num}")
-            break
         draw_header(c, day_num, titles, x_pos, page_height, page_width)
         image_path = os.path.join(input_directory, image_file)
         c.drawImage(image_path,
@@ -124,8 +128,11 @@ def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
                    page_height - scaled_height - 70,  # position below header
                    width=scaled_width, 
                    height=scaled_height)
-        pixel_counts = count_pixels(image_path, titles.get(day_num, {}).get('palette', []))
-        draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_line_y=(page_height - scaled_height - 90))
+        try:
+            pixel_counts = count_pixels(image_path, titles.get(day_num, {}).get('palette', []))
+            draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_line_y=(page_height - scaled_height - 90))
+        except Exception as e:
+            print(f"Error processing image {day_num}: {e}")
         draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at ", f"https://basepaint.xyz/canvas/{day_num}")
         draw_footer_line(c, 40 - 15, page_width, "Archive available at ", "https://github.com/isaacbernat/basepaint")
         c.showPage()
