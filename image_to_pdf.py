@@ -88,21 +88,22 @@ def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_
         draw_text(c, left_text[0], left_text[1], x_pos, first_line_y - (i * 20), italic_offset=left_column_italic_offset, x_offset=0, page_width=page_width)
         draw_text(c, right_text[0], right_text[1], x_pos, first_line_y - (i * 20), italic_offset=0, x_offset=page_width * 0.75, page_width=page_width)
     
-    palette_text_padding = left_column_italic_offset
     sorted_palette = sorted(zip(pixel_counts, titles.get(day_num, {}).get('palette', [])), key=lambda x: x[0], reverse=True)
+    line_offset = 40
+    COLOURS_PER_LINE = 7
     for i, (count, color) in enumerate(sorted_palette):
-        pixel_counts_text = f" {count:.2f}% "
-        line_offset = - 40 if i >= 5 else 0
-        c.drawString(x_pos + ((i % 5) * 20) + palette_text_padding, first_line_y - 60 + line_offset, pixel_counts_text)
-        c.setFont("Courier", 12)
-        c.drawString(x_pos + ((i % 5) * 20) + palette_text_padding, first_line_y - 80 + line_offset, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
+        if i % COLOURS_PER_LINE == 0:
+            palette_text_padding = left_column_italic_offset
+            line_offset -= 40
+        x_offset = x_pos + ((i % COLOURS_PER_LINE) * 20)
         c.setFont("Helvetica", 12)
+        c.drawString(x_offset + palette_text_padding, first_line_y - 60 + line_offset, f" {count:.2f}% ")
+        c.setFont("Courier", 12)
+        c.drawString(x_offset + palette_text_padding, first_line_y - 80 + line_offset, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
         palette_text_padding += 50
         c.setFillColorRGB(color[0] / 255, color[1] / 255, color[2] / 255)
-        c.rect(x_pos + ((i % 5) * 20) + palette_text_padding, first_line_y - 60 + line_offset, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
+        c.rect(x_offset + palette_text_padding, first_line_y - 60 + line_offset, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
         c.setFillColorRGB(0, 0, 0)  # Reset fill color to black for subsequent text
-        if i == 4:
-            palette_text_padding = left_column_italic_offset
 
 
 def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
@@ -117,8 +118,6 @@ def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
     print("Creating PDF...")
     for page_num, image_file in enumerate(image_files, 1):  # Process each image
         day_num = int(image_file.split('.')[0])  # Extract day number (assuming XXXX.jpg)
-        if page_num < 0:
-            continue
         if page_num % 10 == 0:
             print(f"Processing image {day_num}")
         draw_header(c, day_num, titles, x_pos, page_height, page_width)
