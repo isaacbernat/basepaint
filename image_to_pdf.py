@@ -138,12 +138,14 @@ def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
     c.save()
 
 
-if __name__ == "__main__":
+def create_pdf():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     img_dir = os.path.join(script_dir, "images")
-    titles = load_titles(os.path.join(script_dir, "metadata.csv"))
-    image_files = sorted([f for f in os.listdir(img_dir) if f.lower().endswith('.jpg')])
-    last_day = len(image_files)
-    output_pdf = os.path.join(script_dir, f"basepaint_until_{last_day:04d}.pdf")
+    output_pdf = os.path.join(script_dir, "basepaint_archive.pdf")
+    titles = load_titles('metadata.csv')
+    image_files = sorted([f for f in os.listdir(img_dir) if f.endswith('.jpg')])
     create_pdf_from_images(img_dir, output_pdf, titles, image_files)
-    print(f"PDF has been created: {output_pdf}")
+    print("Finish creating PDF.")
+
+if __name__ == "__main__":
+    create_pdf()  # Call the function to execute it immediately
