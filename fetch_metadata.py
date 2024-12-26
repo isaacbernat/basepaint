@@ -2,7 +2,6 @@ import requests
 import csv
 import os
 from typing import Dict, List, Any
-from fetch_images import LATEST
 
 
 def fetch_day_data(day: int) -> Dict[str, Any]:
@@ -39,6 +38,7 @@ def extract_metadata(data: Dict[str, Any], fieldnames: List[str]) -> Dict[str, A
 
 
 def create_metadata_csv(max_day: int):
+    skipped_days = []
     script_dir = os.path.dirname(os.path.abspath(__file__))
     csv_path = os.path.join(script_dir, "metadata.csv")
     fieldnames = ['NUM', 'TITLE', 'PALETTE', 'MINTED', 'ARTISTS', 'PROPOSER', 'MINT_DATE']
@@ -58,7 +58,7 @@ def create_metadata_csv(max_day: int):
         print("Fetching metadata...")
         for day in range(1, max_day + 1):
             if day in existing_days:
-                print(f"Skipping Day {day}: Already in CSV")
+                skipped_days.append(day)
                 continue
             try:
                 data = fetch_day_data(day)
@@ -69,6 +69,5 @@ def create_metadata_csv(max_day: int):
                     print(f"Processed Day {day}: {metadata['TITLE']}")
             except Exception as e:
                 print(f"Error processing Day {day}: {str(e)}")
-
-if __name__ == "__main__":
-    create_metadata_csv(LATEST)
+    print(f"Skipped days (already in CSV): {skipped_days}")
+    print("Finished creating metadata csv.")
