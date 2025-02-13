@@ -3,6 +3,8 @@ import csv
 from datetime import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from PIL import Image
 
 
@@ -26,15 +28,22 @@ def count_pixels(image_path, palette):
     image = Image.open(image_path).convert("RGB")  # Ensure image is in RGB mode
     pixel_count = [0] * len(palette)
     color_dict = {tuple(color): index for index, color in enumerate(palette)}
+    errors = 0
     for pixel in image.getdata():
-        pixel_count[color_dict[pixel]] += 1
+        try:
+            pixel_count[color_dict[pixel]] += 1
+        except Exception as e:  # image 547 fails
+            errors += 1
+    if errors:
+        print(f"count_pixels errors for {image_path}: {errors} pixels not matching palette colors")
+
     return [(count / (image.width * image.height)) * 100 for count in pixel_count]  # percentage_count
 
 
 def draw_text(canvas, text_italic, text_normal, x, y, italic_offset, x_offset, page_width):
-    canvas.setFont("Helvetica-Oblique", 12)  # Italic for descriptive part
+    canvas.setFont("OpenSans-Italic", 12)  # Italic for descriptive part
     canvas.drawString(x + x_offset, y, text_italic)
-    canvas.setFont("Helvetica", 12)  # Regular font for the rest
+    canvas.setFont("OpenSans-Regular", 12)  # Regular font for the rest
     if italic_offset:
         total_italic_offset = x + x_offset + italic_offset
     else:
@@ -61,19 +70,19 @@ def draw_header(canvas, day_num, titles, x_pos, page_height, page_width):
 
 
 def draw_footer_line(c, footer_y, page_width, prefix_text, url_text):
-    prefix_width = c.stringWidth(prefix_text, "Helvetica", 10)
-    total_width = prefix_width + c.stringWidth(url_text, "Courier", 10)
+    prefix_width = c.stringWidth(prefix_text, "OpenSans-Regular", 10)
+    total_width = prefix_width + c.stringWidth(url_text, "FiraMono-Regular", 10)
     start_x = (page_width - total_width) / 2
 
-    c.setFont("Helvetica", 10)
+    c.setFont("OpenSans-Regular", 10)
     c.drawString(start_x, footer_y, prefix_text)
-    c.setFont("Courier", 10)
+    c.setFont("FiraMono-Regular", 10)
     c.drawString(start_x + prefix_width, footer_y, url_text)
 
 
 def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_line_y):
     formatted_mint_date = datetime.fromtimestamp(int(titles.get(day_num, {}).get('MINT_DATE', ''))).strftime('%Y-%m-%d')
-    left_column_italic_offset = c.stringWidth("Mint date: ", "Helvetica-Oblique", 12)
+    left_column_italic_offset = c.stringWidth("Mint date: ", "OpenSans-Italic", 12)
     left_column = [("Mint date:", f" {formatted_mint_date}"),
                    ("Theme:", f" {titles.get(day_num, {}).get('title', '')}"),
                    ("Proposer:", f" {titles.get(day_num, {}).get('proposer', '')}"),
@@ -96,10 +105,10 @@ def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_
             palette_text_padding = left_column_italic_offset
             line_offset -= 40
         x_offset = x_pos + ((i % COLOURS_PER_LINE) * 20)
-        c.setFont("Helvetica", 12)
+        c.setFont("OpenSans-Regular", 12)
         c.drawString(x_offset + palette_text_padding, first_line_y - 60 + line_offset, f" {count:.2f}% ")
-        c.setFont("Courier", 12)
-        c.drawString(x_offset + palette_text_padding, first_line_y - 80 + line_offset, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
+        c.setFont("FiraMono-Regular", 12)
+        c.drawString(x_offset + palette_text_padding + 4, first_line_y - 80 + line_offset, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
         palette_text_padding += 50
         c.setFillColorRGB(color[0] / 255, color[1] / 255, color[2] / 255)
         c.rect(x_offset + palette_text_padding, first_line_y - 60 + line_offset, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
@@ -115,6 +124,10 @@ def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
     scaled_width = scaled_height = img_size * scale_factor
     x_pos = (page_width - scaled_width) / 2
     
+    pdfmetrics.registerFont(TTFont('FiraMono-Regular', './fonts/Fira_Mono/FiraMono-Regular.ttf'))
+    pdfmetrics.registerFont(TTFont('OpenSans-Regular', './fonts/Open_Sans/static/OpenSans-Regular.ttf'))
+    pdfmetrics.registerFont(TTFont('OpenSans-Italic', './fonts/Open_Sans/static/OpenSans-Italic.ttf'))
+    pdfmetrics.registerFont(TTFont('OpenSans-Bold', './fonts/Open_Sans/static/OpenSans-Bold.ttf'))
     print("Creating PDF...")
     for page_num, image_file in enumerate(image_files, 1):  # Process each image
         day_num = int(image_file.split('.')[0])  # Extract day number (assuming XXXX.jpg)
@@ -132,8 +145,8 @@ def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
             draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_line_y=(page_height - scaled_height - 90))
         except Exception as e:
             print(f"Error processing image {day_num}: {e}")
-        draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at ", f"https://basepaint.xyz/canvas/{day_num}")
-        draw_footer_line(c, 40 - 15, page_width, "Archive available at ", "https://github.com/isaacbernat/basepaint")
+        draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz/canvas/{day_num}")
+        draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
         c.showPage()
     c.save()
 
