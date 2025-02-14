@@ -54,10 +54,10 @@ def draw_text(canvas, text_italic, text_normal, x, y, italic_offset, x_offset, p
 def draw_header(canvas, day_num, titles, x_pos, page_height, page_width):
     title_data = titles.get(day_num, {'title': '', 'palette': []})
     title = f"Day {day_num}: {title_data['title']}"
-    canvas.setFont("Helvetica-Bold", 14)
-    canvas.drawString(x_pos, page_height - 50, title)
+    canvas.setFont("MekSans-Regular", 24)
+    canvas.drawString(x_pos, page_height - 55, title)
     
-    square_size = canvas.stringWidth("O", "Helvetica-Bold", 14)  # Size of capital O
+    square_size = canvas.stringWidth("o", "MekSans-Regular", 24)
     square_spacing = square_size * 1.2  # Add some spacing between squares
     palette = title_data['palette']
     total_palette_width = len(palette) * square_spacing
@@ -128,6 +128,8 @@ def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
     pdfmetrics.registerFont(TTFont('OpenSans-Regular', './fonts/Open_Sans/static/OpenSans-Regular.ttf'))
     pdfmetrics.registerFont(TTFont('OpenSans-Italic', './fonts/Open_Sans/static/OpenSans-Italic.ttf'))
     pdfmetrics.registerFont(TTFont('OpenSans-Bold', './fonts/Open_Sans/static/OpenSans-Bold.ttf'))
+    pdfmetrics.registerFont(TTFont('MekSans-Regular', './fonts/MEK/meksans-regular-webfont.ttf'))
+
     print("Creating PDF...")
     for page_num, image_file in enumerate(image_files, 1):  # Process each image
         day_num = int(image_file.split('.')[0])  # Extract day number (assuming XXXX.jpg)
