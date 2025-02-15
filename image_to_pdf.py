@@ -115,6 +115,21 @@ def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_
         c.setFillColorRGB(0, 0, 0)  # Reset fill color to black for subsequent text
 
 
+def create_front_page(c, x_pos, page_height, page_width, image_files, input_directory, titles):
+    title = f"Basepaint Archive"
+    c.setFont("MekSans-Regular", 64)
+    c.drawString(x_pos + 7, page_height - 81, title)
+
+    subtitle = f"Art Lives in Every Pixel"
+    c.setFont("MekMono", 24)
+    c.drawString(x_pos + 10, page_height - 105, subtitle)
+    c.drawString(381, page_height - 105, f"Up 'til day #{len(image_files)}")
+
+    draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz")
+    draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
+    c.showPage()
+
+
 def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
     c = canvas.Canvas(output_pdf, pagesize=A4)
     c.setStrokeColorRGB(0, 0, 0)  # Set border color to black
@@ -123,14 +138,15 @@ def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
     scale_factor = (page_width * 0.9) / img_size  # 90% of page width
     scaled_width = scaled_height = img_size * scale_factor
     x_pos = (page_width - scaled_width) / 2
-    
     pdfmetrics.registerFont(TTFont('FiraMono-Regular', './fonts/Fira_Mono/FiraMono-Regular.ttf'))
     pdfmetrics.registerFont(TTFont('OpenSans-Regular', './fonts/Open_Sans/static/OpenSans-Regular.ttf'))
     pdfmetrics.registerFont(TTFont('OpenSans-Italic', './fonts/Open_Sans/static/OpenSans-Italic.ttf'))
     pdfmetrics.registerFont(TTFont('OpenSans-Bold', './fonts/Open_Sans/static/OpenSans-Bold.ttf'))
     pdfmetrics.registerFont(TTFont('MekSans-Regular', './fonts/MEK/meksans-regular-webfont.ttf'))
+    pdfmetrics.registerFont(TTFont('MekMono', './fonts/MEK/mek-mono-webfont.ttf'))
 
     print("Creating PDF...")
+    create_front_page(c, x_pos, page_height, page_width, image_files, input_directory, titles)
     for page_num, image_file in enumerate(image_files, 1):  # Process each image
         day_num = int(image_file.split('.')[0])  # Extract day number (assuming XXXX.jpg)
         if page_num % 10 == 0:
