@@ -1,5 +1,6 @@
 import os
 import csv
+from collections import defaultdict
 from datetime import datetime
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
@@ -115,7 +116,7 @@ def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_
         c.setFillColorRGB(0, 0, 0)  # Reset fill color to black for subsequent text
 
 
-def create_front_page(c, x_pos, page_height, page_width, image_files, input_directory, titles):
+def create_front_page(c, x_pos, page_height, page_width, image_files, input_directory):
     title = f"Basepaint Archive"
     c.setFont("MekSans-Regular", 64)
     c.drawString(x_pos + 7, page_height - 81, title)
@@ -123,11 +124,57 @@ def create_front_page(c, x_pos, page_height, page_width, image_files, input_dire
     subtitle = f"Art Lives in Every Pixel"
     c.setFont("MekMono", 24)
     c.drawString(x_pos + 10, page_height - 105, subtitle)
-    c.drawString(381, page_height - 105, f"Up 'til day #{len(image_files)}")
+    c.drawString(349, page_height - 105, f"From day #1 to #{len(image_files)}")
 
+    draw_mosaic(c, x_pos, page_height, image_files, input_directory)
     draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz")
     draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
+
     c.showPage()
+
+def draw_mosaic(c, x_pos, page_height, image_files, input_directory):
+    c.setFont("OpenSans-Regular", 12)
+    c.drawString(x_pos + 10, page_height - 180, "Top 100 colors (by pixel count):")
+    c.drawString(381, page_height - 180, f"Archive version: 0.1.0")
+
+    color_dict = defaultdict(int)
+    for i, image_file in enumerate(image_files, 1):  # Process each image
+        if i % 10 == 0:
+            print(f"Collecting front-page pixels stats {i}/{len(image_files)}")
+        image_path = os.path.join(input_directory, image_file)
+        image = Image.open(image_path).convert("RGB")  # Ensure image is in RGB mode
+        for pixel in image.getdata():
+            color_dict[pixel] += 1
+
+    color_dict = {value: key for key, value in color_dict.items()}  # invert dict, so it may be sorted by count
+    first_line_y = page_height - 140  # TODO PARAM
+    line_offset = 40
+    COLOURS_PER_LINE = 7
+    MAX_LINES = 15
+    for i, (count, color) in enumerate(sorted(color_dict.items(), reverse=True)):
+        if i == COLOURS_PER_LINE * MAX_LINES:
+            break
+        if i % COLOURS_PER_LINE == 0:
+            palette_text_padding = 10  # TODO param
+            line_offset -= 40
+        x_offset = x_pos + ((i % COLOURS_PER_LINE) * 20)
+        c.setFont("OpenSans-Regular", 12)
+        c.drawString(x_offset + palette_text_padding, first_line_y - 60 + line_offset, f" {count/1000000:.2f}M ")
+        c.setFont("FiraMono-Regular", 12)
+        c.drawString(x_offset + palette_text_padding + 4, first_line_y - 80 + line_offset, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
+        palette_text_padding += 50
+        c.setFillColorRGB(color[0] / 255, color[1] / 255, color[2] / 255)
+        c.rect(x_offset + palette_text_padding, first_line_y - 60 + line_offset, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
+        c.setFillColorRGB(0, 0, 0)  # Reset fill color to black for subsequent text
+
+
+def load_fonts():
+    pdfmetrics.registerFont(TTFont('FiraMono-Regular', './fonts/Fira_Mono/FiraMono-Regular.ttf'))
+    pdfmetrics.registerFont(TTFont('OpenSans-Regular', './fonts/Open_Sans/static/OpenSans-Regular.ttf'))
+    pdfmetrics.registerFont(TTFont('OpenSans-Italic', './fonts/Open_Sans/static/OpenSans-Italic.ttf'))
+    pdfmetrics.registerFont(TTFont('OpenSans-Bold', './fonts/Open_Sans/static/OpenSans-Bold.ttf'))
+    pdfmetrics.registerFont(TTFont('MekSans-Regular', './fonts/MEK/meksans-regular-webfont.ttf'))
+    pdfmetrics.registerFont(TTFont('MekMono', './fonts/MEK/mek-mono-webfont.ttf'))
 
 
 def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
@@ -138,19 +185,14 @@ def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
     scale_factor = (page_width * 0.9) / img_size  # 90% of page width
     scaled_width = scaled_height = img_size * scale_factor
     x_pos = (page_width - scaled_width) / 2
-    pdfmetrics.registerFont(TTFont('FiraMono-Regular', './fonts/Fira_Mono/FiraMono-Regular.ttf'))
-    pdfmetrics.registerFont(TTFont('OpenSans-Regular', './fonts/Open_Sans/static/OpenSans-Regular.ttf'))
-    pdfmetrics.registerFont(TTFont('OpenSans-Italic', './fonts/Open_Sans/static/OpenSans-Italic.ttf'))
-    pdfmetrics.registerFont(TTFont('OpenSans-Bold', './fonts/Open_Sans/static/OpenSans-Bold.ttf'))
-    pdfmetrics.registerFont(TTFont('MekSans-Regular', './fonts/MEK/meksans-regular-webfont.ttf'))
-    pdfmetrics.registerFont(TTFont('MekMono', './fonts/MEK/mek-mono-webfont.ttf'))
+    load_fonts()
 
     print("Creating PDF...")
-    create_front_page(c, x_pos, page_height, page_width, image_files, input_directory, titles)
+    create_front_page(c, x_pos, page_height, page_width, image_files, input_directory)
     for page_num, image_file in enumerate(image_files, 1):  # Process each image
         day_num = int(image_file.split('.')[0])  # Extract day number (assuming XXXX.jpg)
         if page_num % 10 == 0:
-            print(f"Processing image {day_num}")
+            print(f"Processing image {day_num}/{len(image_files)}")
         draw_header(c, day_num, titles, x_pos, page_height, page_width)
         image_path = os.path.join(input_directory, image_file)
         c.drawImage(image_path,
