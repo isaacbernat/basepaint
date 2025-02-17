@@ -81,6 +81,30 @@ def draw_footer_line(c, footer_y, page_width, prefix_text, url_text):
     c.drawString(start_x + prefix_width, footer_y, url_text)
 
 
+def draw_pixel_info(c, sorted_palette, x_pos, first_line_y, palette_text_padding, max_lines=99, text_formula=lambda count: f" {count:.2f}% "):
+    line_offset = 40
+    init_text_padding = palette_text_padding
+    COLOURS_PER_LINE = 7
+    for i, (count, color) in enumerate(sorted_palette):
+        if i == COLOURS_PER_LINE * max_lines:
+            break
+        if i % COLOURS_PER_LINE == 0:
+            line_offset -= 40
+            palette_text_padding= init_text_padding
+        x_offset = x_pos + ((i % COLOURS_PER_LINE) * 20)
+
+        c.setFont("OpenSans-Regular", 12)
+        c.drawString(x_offset + palette_text_padding, first_line_y - 60 + line_offset, text_formula(count))
+            
+        c.setFont("FiraMono-Regular", 12)
+        c.drawString(x_offset + palette_text_padding + 4, first_line_y - 80 + line_offset, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
+        palette_text_padding += 50
+
+        c.setFillColorRGB(color[0] / 255, color[1] / 255, color[2] / 255)
+        c.rect(x_offset + palette_text_padding, first_line_y - 60 + line_offset, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
+        c.setFillColorRGB(0, 0, 0)  # Reset fill color to black for subsequent text
+
+
 def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_line_y):
     formatted_mint_date = datetime.fromtimestamp(int(titles.get(day_num, {}).get('MINT_DATE', ''))).strftime('%Y-%m-%d')
     left_column_italic_offset = c.stringWidth("Mint date: ", "OpenSans-Italic", 12)
@@ -99,21 +123,32 @@ def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_
         draw_text(c, right_text[0], right_text[1], x_pos, first_line_y - (i * 20), italic_offset=0, x_offset=page_width * 0.75, page_width=page_width)
     
     sorted_palette = sorted(zip(pixel_counts, titles.get(day_num, {}).get('palette', [])), key=lambda x: x[0], reverse=True)
-    line_offset = 40
-    COLOURS_PER_LINE = 7
-    for i, (count, color) in enumerate(sorted_palette):
-        if i % COLOURS_PER_LINE == 0:
-            palette_text_padding = left_column_italic_offset
-            line_offset -= 40
-        x_offset = x_pos + ((i % COLOURS_PER_LINE) * 20)
-        c.setFont("OpenSans-Regular", 12)
-        c.drawString(x_offset + palette_text_padding, first_line_y - 60 + line_offset, f" {count:.2f}% ")
-        c.setFont("FiraMono-Regular", 12)
-        c.drawString(x_offset + palette_text_padding + 4, first_line_y - 80 + line_offset, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
-        palette_text_padding += 50
-        c.setFillColorRGB(color[0] / 255, color[1] / 255, color[2] / 255)
-        c.rect(x_offset + palette_text_padding, first_line_y - 60 + line_offset, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
-        c.setFillColorRGB(0, 0, 0)  # Reset fill color to black for subsequent text
+    draw_pixel_info(c, sorted_palette, x_pos, first_line_y, left_column_italic_offset)
+
+
+def draw_mosaic(c, x_pos, page_height, image_files, input_directory):
+    c.setFont("OpenSans-Regular", 12)
+    c.drawString(x_pos + 10, page_height - 180, "Top 100 colors (by pixel count):")
+    c.drawString(381, page_height - 180, f"Archive version: 0.1.0")
+
+    color_dict = defaultdict(int)
+    for i, image_file in enumerate(image_files, 1):  # Process each image
+        if i % 10 == 0:
+            print(f"Collecting front-page pixels stats {i}/{len(image_files)}")
+        image_path = os.path.join(input_directory, image_file)
+        image = Image.open(image_path).convert("RGB")  # Ensure image is in RGB mode
+        for pixel in image.getdata():
+            color_dict[pixel] += 1
+
+    draw_pixel_info(
+        c,
+        sorted({value: key for key, value in color_dict.items()}.items(), reverse=True),
+        x_pos,
+        first_line_y=page_height - 140,
+        palette_text_padding=10,
+        max_lines=15,
+        text_formula=lambda count: f" {count/1000000:.2f}M "
+    )
 
 
 def create_front_page(c, x_pos, page_height, page_width, image_files, input_directory):
@@ -131,41 +166,6 @@ def create_front_page(c, x_pos, page_height, page_width, image_files, input_dire
     draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
 
     c.showPage()
-
-def draw_mosaic(c, x_pos, page_height, image_files, input_directory):
-    c.setFont("OpenSans-Regular", 12)
-    c.drawString(x_pos + 10, page_height - 180, "Top 100 colors (by pixel count):")
-    c.drawString(381, page_height - 180, f"Archive version: 0.1.0")
-
-    color_dict = defaultdict(int)
-    for i, image_file in enumerate(image_files, 1):  # Process each image
-        if i % 10 == 0:
-            print(f"Collecting front-page pixels stats {i}/{len(image_files)}")
-        image_path = os.path.join(input_directory, image_file)
-        image = Image.open(image_path).convert("RGB")  # Ensure image is in RGB mode
-        for pixel in image.getdata():
-            color_dict[pixel] += 1
-
-    color_dict = {value: key for key, value in color_dict.items()}  # invert dict, so it may be sorted by count
-    first_line_y = page_height - 140  # TODO PARAM
-    line_offset = 40
-    COLOURS_PER_LINE = 7
-    MAX_LINES = 15
-    for i, (count, color) in enumerate(sorted(color_dict.items(), reverse=True)):
-        if i == COLOURS_PER_LINE * MAX_LINES:
-            break
-        if i % COLOURS_PER_LINE == 0:
-            palette_text_padding = 10  # TODO param
-            line_offset -= 40
-        x_offset = x_pos + ((i % COLOURS_PER_LINE) * 20)
-        c.setFont("OpenSans-Regular", 12)
-        c.drawString(x_offset + palette_text_padding, first_line_y - 60 + line_offset, f" {count/1000000:.2f}M ")
-        c.setFont("FiraMono-Regular", 12)
-        c.drawString(x_offset + palette_text_padding + 4, first_line_y - 80 + line_offset, f" #{color[0]:02x}{color[1]:02x}{color[2]:02x}")
-        palette_text_padding += 50
-        c.setFillColorRGB(color[0] / 255, color[1] / 255, color[2] / 255)
-        c.rect(x_offset + palette_text_padding, first_line_y - 60 + line_offset, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
-        c.setFillColorRGB(0, 0, 0)  # Reset fill color to black for subsequent text
 
 
 def load_fonts():
