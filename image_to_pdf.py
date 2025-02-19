@@ -151,7 +151,64 @@ def draw_mosaic(c, x_pos, page_height, image_files, input_directory):
     )
 
 
-def create_front_page(c, x_pos, page_height, page_width, image_files, input_directory):
+def load_fonts():
+    pdfmetrics.registerFont(TTFont('FiraMono-Regular', './fonts/Fira_Mono/FiraMono-Regular.ttf'))
+    pdfmetrics.registerFont(TTFont('OpenSans-Regular', './fonts/Open_Sans/static/OpenSans-Regular.ttf'))
+    pdfmetrics.registerFont(TTFont('OpenSans-Italic', './fonts/Open_Sans/static/OpenSans-Italic.ttf'))
+    pdfmetrics.registerFont(TTFont('OpenSans-Bold', './fonts/Open_Sans/static/OpenSans-Bold.ttf'))
+    pdfmetrics.registerFont(TTFont('MekSans-Regular', './fonts/MEK/meksans-regular-webfont.ttf'))
+    pdfmetrics.registerFont(TTFont('MekMono', './fonts/MEK/mek-mono-webfont.ttf'))
+
+
+def create_canvas(output_pdf, size=A4):
+    c = canvas.Canvas(output_pdf, pagesize=size)
+    c.setStrokeColorRGB(0, 0, 0)  # Set border color to black
+    page_width, page_height = size
+    img_size = 2560 * 72 / 96  # Convert pixels to points (96 DPI to 72 DPI)
+    scale_factor = (page_width * 0.9) / img_size  # 90% of page width
+    scaled_width = img_size * scale_factor
+    x_pos = (page_width - scaled_width) / 2
+
+    return c, x_pos, scaled_width
+
+
+def create_pdf_from_images(input_directory, pdf_dir, titles, image_files, size=A4, batch=100):
+    page_width, page_height = size
+    for page_num, image_file in enumerate(image_files, 1):  # Process each image
+        if page_num % batch == 1:
+            output_pdf = os.path.join(pdf_dir, f"basepaint_archive_{page_num}_to_{page_num+99}.pdf")
+            c, x_pos, scaled_width = create_canvas(output_pdf)
+
+        day_num = int(image_file.split('.')[0])  # Extract day number (assuming XXXX.jpg)
+        if page_num % 10 == 0:
+            print(f"Processing image {day_num}/{len(image_files)}")
+
+        draw_header(c, day_num, titles, x_pos, page_height, page_width)
+        image_path = os.path.join(input_directory, image_file)
+        c.drawImage(image_path,
+                   x_pos,  # center horizontally
+                   page_height - scaled_width - 70,  # position below header
+                   width=scaled_width, 
+                   height=scaled_width)
+        try:
+            pixel_counts = count_pixels(image_path, titles.get(day_num, {}).get('palette', []))
+            draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_line_y=(page_height - scaled_width - 90))
+        except Exception as e:
+            print(f"Error processing image {day_num}: {e}")
+        draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz/canvas/{day_num}")
+        draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
+        c.showPage()
+        if page_num % 100 == 0:
+            c.save()
+            print(f"saved {output_pdf}")
+
+
+def create_cover(input_directory, pdf_dir, size, image_files):
+    print("Creating PDF cover...")
+    output_pdf = os.path.join(pdf_dir, "basepaint_archive_000_cover.pdf")
+    page_width, page_height = size
+    c, x_pos, _ = create_canvas(output_pdf)
+
     title = f"Basepaint Archive"
     c.setFont("MekSans-Regular", 64)
     c.drawString(x_pos + 7, page_height - 81, title)
@@ -166,58 +223,25 @@ def create_front_page(c, x_pos, page_height, page_width, image_files, input_dire
     draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
 
     c.showPage()
-
-
-def load_fonts():
-    pdfmetrics.registerFont(TTFont('FiraMono-Regular', './fonts/Fira_Mono/FiraMono-Regular.ttf'))
-    pdfmetrics.registerFont(TTFont('OpenSans-Regular', './fonts/Open_Sans/static/OpenSans-Regular.ttf'))
-    pdfmetrics.registerFont(TTFont('OpenSans-Italic', './fonts/Open_Sans/static/OpenSans-Italic.ttf'))
-    pdfmetrics.registerFont(TTFont('OpenSans-Bold', './fonts/Open_Sans/static/OpenSans-Bold.ttf'))
-    pdfmetrics.registerFont(TTFont('MekSans-Regular', './fonts/MEK/meksans-regular-webfont.ttf'))
-    pdfmetrics.registerFont(TTFont('MekMono', './fonts/MEK/mek-mono-webfont.ttf'))
-
-
-def create_pdf_from_images(input_directory, output_pdf, titles, image_files):
-    c = canvas.Canvas(output_pdf, pagesize=A4)
-    c.setStrokeColorRGB(0, 0, 0)  # Set border color to black
-    page_width, page_height = A4
-    img_size = 2560 * 72 / 96  # Convert pixels to points (96 DPI to 72 DPI)
-    scale_factor = (page_width * 0.9) / img_size  # 90% of page width
-    scaled_width = scaled_height = img_size * scale_factor
-    x_pos = (page_width - scaled_width) / 2
-    load_fonts()
-
-    print("Creating PDF...")
-    create_front_page(c, x_pos, page_height, page_width, image_files, input_directory)
-    for page_num, image_file in enumerate(image_files, 1):  # Process each image
-        day_num = int(image_file.split('.')[0])  # Extract day number (assuming XXXX.jpg)
-        if page_num % 10 == 0:
-            print(f"Processing image {day_num}/{len(image_files)}")
-        draw_header(c, day_num, titles, x_pos, page_height, page_width)
-        image_path = os.path.join(input_directory, image_file)
-        c.drawImage(image_path,
-                   x_pos,  # center horizontally
-                   page_height - scaled_height - 70,  # position below header
-                   width=scaled_width, 
-                   height=scaled_height)
-        try:
-            pixel_counts = count_pixels(image_path, titles.get(day_num, {}).get('palette', []))
-            draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_line_y=(page_height - scaled_height - 90))
-        except Exception as e:
-            print(f"Error processing image {day_num}: {e}")
-        draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz/canvas/{day_num}")
-        draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
-        c.showPage()
     c.save()
 
 
 def create_pdf():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     img_dir = os.path.join(script_dir, "images")
-    output_pdf = os.path.join(script_dir, "basepaint_archive.pdf")
+    pdf_dir = os.path.join(script_dir, "pdf")
+    os.makedirs(pdf_dir, exist_ok=True)  # Create pdf directory if needed
     titles = load_titles('metadata.csv')
     image_files = sorted([f for f in os.listdir(img_dir) if f.endswith('.jpg')])
-    create_pdf_from_images(img_dir, output_pdf, titles, image_files)
+    size=A4
+    load_fonts()
+    create_cover(
+        input_directory=img_dir,
+        pdf_dir=pdf_dir,
+        size=size,
+        image_files=image_files,
+    )
+    create_pdf_from_images(img_dir, pdf_dir, titles, image_files, size=size, batch=100)
     print("Finish creating PDF.")
 
 if __name__ == "__main__":
