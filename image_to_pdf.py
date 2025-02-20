@@ -163,7 +163,7 @@ def load_fonts():
 def create_canvas(output_pdf, size=A4):
     c = canvas.Canvas(output_pdf, pagesize=size)
     c.setStrokeColorRGB(0, 0, 0)  # Set border color to black
-    page_width, page_height = size
+    page_width, _ = size
     img_size = 2560 * 72 / 96  # Convert pixels to points (96 DPI to 72 DPI)
     scale_factor = (page_width * 0.9) / img_size  # 90% of page width
     scaled_width = img_size * scale_factor
@@ -226,7 +226,7 @@ def create_cover(input_directory, pdf_dir, size, image_files):
     c.save()
 
 
-def create_pdf():
+def create_pdf(batch_size=100, create_cover=True):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     img_dir = os.path.join(script_dir, "images")
     pdf_dir = os.path.join(script_dir, "pdf")
@@ -235,13 +235,14 @@ def create_pdf():
     image_files = sorted([f for f in os.listdir(img_dir) if f.endswith('.jpg')])
     size=A4
     load_fonts()
-    create_cover(
-        input_directory=img_dir,
-        pdf_dir=pdf_dir,
-        size=size,
-        image_files=image_files,
-    )
-    create_pdf_from_images(img_dir, pdf_dir, titles, image_files, size=size, batch=100)
+    if create_cover:
+        create_cover(
+            input_directory=img_dir,
+            pdf_dir=pdf_dir,
+            size=size,
+            image_files=image_files,
+        )
+    create_pdf_from_images(img_dir, pdf_dir, titles, image_files, size=size, batch=batch_size)
     print("Finish creating PDF.")
 
 if __name__ == "__main__":
