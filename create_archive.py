@@ -2,7 +2,9 @@ from fetch_images import fetch_images
 from fetch_metadata import create_metadata_csv
 from enrich_metadata import enrich_metadata_csv
 from image_to_pdf import create_pdf
-LATEST = 500
+LATEST = 556
+BATCH_SIZE = 100
+CREATE_COVER = True
 
 
 if __name__ == '__main__':
@@ -10,4 +12,4 @@ if __name__ == '__main__':
     fetch_images(LATEST)
     create_metadata_csv(LATEST)
     enrich_metadata_csv()
-    create_pdf()
+    create_pdf(BATCH_SIZE, CREATE_COVER)
