@@ -226,7 +226,7 @@ def create_cover(input_directory, pdf_dir, size, image_files):
     c.save()
 
 
-def create_pdf(batch_size=100, create_cover=True):
+def create_pdf(batch_size=100, add_cover=True):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     img_dir = os.path.join(script_dir, "images")
     pdf_dir = os.path.join(script_dir, "pdf")
@@ -235,14 +235,14 @@ def create_pdf(batch_size=100, create_cover=True):
     image_files = sorted([f for f in os.listdir(img_dir) if f.endswith('.jpg')])
     size=A4
     load_fonts()
-    if create_cover:
+    create_pdf_from_images(img_dir, pdf_dir, titles, image_files, size=size, batch=batch_size)
+    if add_cover:
         create_cover(
             input_directory=img_dir,
             pdf_dir=pdf_dir,
             size=size,
             image_files=image_files,
         )
-    create_pdf_from_images(img_dir, pdf_dir, titles, image_files, size=size, batch=batch_size)
     print("Finish creating PDF.")
 
 if __name__ == "__main__":
