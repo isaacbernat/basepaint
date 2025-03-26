@@ -9,6 +9,9 @@ from reportlab.pdfbase.ttfonts import TTFont
 from PIL import Image
 
 
+from video_to_images import extract_images_from_video
+
+
 def load_titles(csv_path):
     titles = {}
     with open(csv_path, 'r', encoding='utf-8') as f:
@@ -172,6 +175,24 @@ def create_canvas(output_pdf, size=A4):
     return c, x_pos, scaled_width
 
 
+def create_video_page(c, script_dir, page_width, page_height, image_file, scaled_width, x_pos, video_image_path):
+    day_num = image_file[:-4]
+    video_file = os.path.join(os.path.join(script_dir, "videos"),  day_num + ".mp4")
+    extract_images_from_video(video_file)
+    video_image_files = sorted([f for f in os.listdir(video_image_path) if f.endswith('.jpg')])
+
+    for i, video_image_file in enumerate(video_image_files):
+        video_image_frame_path = os.path.join(video_image_path, video_image_file)
+        c.drawImage(video_image_frame_path,
+                x_pos,  # center horizontally
+                page_height - scaled_width - 70,  # position below header
+                width=scaled_width, 
+                height=scaled_width)
+        draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz/canvas/{day_num}")
+        draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
+        c.showPage()
+
+
 def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video=False):
     image_dir = os.path.join(script_dir, "images")
     image_files = sorted([f for f in os.listdir(image_dir) if f.endswith('.jpg')])
@@ -203,6 +224,8 @@ def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video
         draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz/canvas/{day_num}")
         draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
         c.showPage()
+        if include_video:
+            create_video_page(c, script_dir, page_width, page_height, image_file, scaled_width, x_pos, os.path.join(script_dir, "video_images"))
 
         if page_num % batch == 0:
             c.save()
