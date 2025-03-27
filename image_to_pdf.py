@@ -175,22 +175,39 @@ def create_canvas(output_pdf, size=A4):
     return c, x_pos, scaled_width
 
 
-def create_video_page(c, script_dir, page_width, page_height, image_file, scaled_width, x_pos, video_image_path):
+def draw_video_footer_lines(c, page_width, day_num):
+    draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz/canvas/{day_num}")
+    draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
+
+
+def create_video_page(c, script_dir, page_width, page_height, image_file, scaled_width, x_pos, video_image_path, titles):
     day_num = image_file[:-4]
+    title_data = titles.get(int(day_num), {'title': '', 'palette': []})
+    title_data['title'] = title_data.get('title', '') + f" (WIP)"
+    title_data['palette'] = []
+
     video_file = os.path.join(os.path.join(script_dir, "videos"),  day_num + ".mp4")
     extract_images_from_video(video_file)
-    video_image_files = sorted([f for f in os.listdir(video_image_path) if f.endswith('.jpg')])
+    video_image_files = sorted([f for f in os.listdir(video_image_path) if f.endswith('.jpg') and f.startswith(day_num)])
 
-    for i, video_image_file in enumerate(video_image_files):
+    frame_width = scaled_width / 3  # 3 columns
+    frame_height = frame_width  # square
+    max_frames_per_row = int(page_width / frame_width)  # calculate how many frames can fit in a row
+    page_frame_count = 0
+    gap = 10  # whitespace between images
+
+    draw_header(c, int(day_num), {int(day_num): title_data}, x_pos, page_height, page_width)
+    for video_image_file in video_image_files:            
         video_image_frame_path = os.path.join(video_image_path, video_image_file)
+        frame_x = (page_frame_count % max_frames_per_row) * (frame_width + gap) + x_pos  # position horizontally
+        frame_y = page_height - (page_frame_count // max_frames_per_row + 1) * (frame_height + gap) - 70  # position vertically
         c.drawImage(video_image_frame_path,
-                x_pos,  # center horizontally
-                page_height - scaled_width - 70,  # position below header
-                width=scaled_width, 
-                height=scaled_width)
-        draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz/canvas/{day_num}")
-        draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
-        c.showPage()
+                frame_x,
+                frame_y,
+                width=frame_width, 
+                height=frame_height)
+        page_frame_count += 1
+    c.showPage()
 
 
 def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video=False):
@@ -221,11 +238,10 @@ def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video
             draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_line_y=(page_height - scaled_width - 90))
         except Exception as e:
             print(f"Error processing image {day_num}: {e}")
-        draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz/canvas/{day_num}")
-        draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
+        draw_video_footer_lines(c, page_width, day_num)
         c.showPage()
         if include_video:
-            create_video_page(c, script_dir, page_width, page_height, image_file, scaled_width, x_pos, os.path.join(script_dir, "video_images"))
+            create_video_page(c, script_dir, page_width, page_height, image_file, scaled_width, x_pos, os.path.join(script_dir, "video_images"), titles)
 
         if page_num % batch == 0:
             c.save()
