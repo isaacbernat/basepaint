@@ -132,7 +132,7 @@ def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_
 def draw_mosaic(c, x_pos, page_height, image_files, input_directory):
     c.setFont("OpenSans-Regular", 12)
     c.drawString(x_pos + 10, page_height - 180, "Top 100 colors (by pixel count):")
-    c.drawString(381, page_height - 180, f"Archive version: 0.1.0")
+    c.drawString(381, page_height - 180, f"Archive version: 0.2.0")
 
     color_dict = defaultdict(int)
     for i, image_file in enumerate(image_files, 1):  # Process each image
@@ -220,7 +220,11 @@ def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video
     for page_num, image_file in enumerate(image_files, 1):  # Process each image
         if page_num % batch == 1:
             output_pdf = os.path.join(pdf_dir, f"basepaint_archive_{page_num}_to_{page_num+batch-1}.pdf")
+            if os.path.exists(output_pdf):
+                print(f"Skipping {output_pdf} as it already exists")
             c, x_pos, scaled_width = create_canvas(output_pdf)
+        if os.path.exists(output_pdf):
+            continue
 
         day_num = int(image_file.split('.')[0])  # Extract day number (assuming XXXX.jpg)
         if page_num % 10 == 0:
