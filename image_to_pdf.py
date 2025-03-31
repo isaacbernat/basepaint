@@ -252,8 +252,10 @@ def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video
             print(f"saved {output_pdf}")
 
 
-def create_cover(image_dir, pdf_dir, size, image_files):
+def create_cover(script_dir, size, image_files):
     print("Creating PDF cover...")
+    img_dir = os.path.join(script_dir, "images")
+    pdf_dir = os.path.join(script_dir, "pdf")
     output_pdf = os.path.join(pdf_dir, "basepaint_archive_000_cover.pdf")
     page_width, page_height = size
     c, x_pos, _ = create_canvas(output_pdf)
@@ -267,7 +269,7 @@ def create_cover(image_dir, pdf_dir, size, image_files):
     c.drawString(x_pos + 10, page_height - 105, subtitle)
     c.drawString(349, page_height - 105, f"From day #1 to #{len(image_files)}")
 
-    draw_mosaic(c, x_pos, page_height, image_files, image_dir)
+    draw_mosaic(c, x_pos, page_height, image_files, img_dir)
     draw_footer_line(c, 40, page_width, "Artwork generated collaboratively at  ", f"https://basepaint.xyz")
     draw_footer_line(c, 40 - 15, page_width, "Archive available at  ", "https://github.com/isaacbernat/basepaint")
 
@@ -284,8 +286,7 @@ def create_pdf(batch_size=100, add_cover=True, include_video=False):
         img_dir = os.path.join(script_dir, "images")
         image_files = sorted([f for f in os.listdir(img_dir) if f.endswith('.jpg')])
         create_cover(
-            image_dir=img_dir,
-            pdf_dir=pdf_dir,
+            script_dir=script_dir,
             size=A4,
             image_files=image_files,
         )
