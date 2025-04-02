@@ -10,6 +10,7 @@ from PIL import Image
 
 
 from video_to_images import extract_images_from_video
+from create_archive import ARCHIVE_VERSION
 
 
 def load_titles(csv_path):
@@ -132,7 +133,7 @@ def draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_
 def draw_mosaic(c, x_pos, page_height, image_files, input_directory):
     c.setFont("OpenSans-Regular", 12)
     c.drawString(x_pos + 10, page_height - 180, "Top 100 colors (by pixel count):")
-    c.drawString(381, page_height - 180, f"Archive version: 0.2.0")
+    c.drawString(381, page_height - 180, f"Archive version: {ARCHIVE_VERSION}")
 
     color_dict = defaultdict(int)
     for i, image_file in enumerate(image_files, 1):  # Process each image

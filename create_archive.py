@@ -6,6 +6,7 @@ LATEST = 560
 BATCH_SIZE = 100
 CREATE_COVER = True
 INCLUDE_VIDEO = True
+ARCHIVE_VERSION = "0.2.0"
 
 
 if __name__ == '__main__':
