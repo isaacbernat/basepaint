@@ -10,7 +10,7 @@ from PIL import Image
 
 
 from video_to_images import extract_images_from_video
-from create_archive import ARCHIVE_VERSION
+from config import ARCHIVE_VERSION
 
 
 def load_titles(csv_path):
@@ -220,7 +220,7 @@ def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video
     page_width, page_height = size
     for page_num, image_file in enumerate(image_files, 1):  # Process each image
         if page_num % batch == 1:
-            output_pdf = os.path.join(pdf_dir, f"basepaint_archive_{page_num}_to_{page_num+batch-1}.pdf")
+            output_pdf = os.path.join(pdf_dir, f"basepaint_archive_{page_num:04d}_to_{page_num+batch-1:04d}.pdf")
             if os.path.exists(output_pdf):
                 print(f"Skipping {output_pdf} as it already exists")
             c, x_pos, scaled_width = create_canvas(output_pdf)
@@ -257,7 +257,7 @@ def create_cover(script_dir, size, image_files):
     print("Creating PDF cover...")
     img_dir = os.path.join(script_dir, "images")
     pdf_dir = os.path.join(script_dir, "pdf")
-    output_pdf = os.path.join(pdf_dir, "basepaint_archive_000_cover.pdf")
+    output_pdf = os.path.join(pdf_dir, "basepaint_archive_0000_cover.pdf")
     page_width, page_height = size
     c, x_pos, _ = create_canvas(output_pdf)
 
@@ -292,6 +292,3 @@ def create_pdf(batch_size=100, add_cover=True, include_video=False):
             image_files=image_files,
         )
     print("Finish creating PDF.")
-
-if __name__ == "__main__":
-    create_pdf()  # Call the function to execute it immediately
