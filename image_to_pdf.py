@@ -211,6 +211,23 @@ def create_video_page(c, script_dir, page_width, page_height, image_file, scaled
     c.showPage()
 
 
+def create_image_page(c, page_width, page_height, image_file, scaled_width, x_pos, titles, day_num, image_dir):
+    draw_header(c, day_num, titles, x_pos, page_height, page_width)
+    image_path = os.path.join(image_dir, image_file)
+    c.drawImage(image_path,
+                x_pos,  # center horizontally
+                page_height - scaled_width - 70,  # position below header
+                width=scaled_width, 
+                height=scaled_width)
+    try:
+        pixel_counts = count_pixels(image_path, titles.get(day_num, {}).get('palette', []))
+        draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_line_y=(page_height - scaled_width - 90))
+    except Exception as e:
+        print(f"Error processing image {day_num}: {e}")
+    draw_video_footer_lines(c, page_width, day_num)
+    c.showPage()
+
+
 def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video=False):
     image_dir = os.path.join(script_dir, "images")
     image_files = sorted([f for f in os.listdir(image_dir) if f.endswith('.jpg')])
@@ -231,20 +248,7 @@ def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video
         if page_num % 10 == 0:
             print(f"Processing image {day_num}/{len(image_files)}")
 
-        draw_header(c, day_num, titles, x_pos, page_height, page_width)
-        image_path = os.path.join(image_dir, image_file)
-        c.drawImage(image_path,
-                   x_pos,  # center horizontally
-                   page_height - scaled_width - 70,  # position below header
-                   width=scaled_width, 
-                   height=scaled_width)
-        try:
-            pixel_counts = count_pixels(image_path, titles.get(day_num, {}).get('palette', []))
-            draw_description(c, titles, day_num, pixel_counts, x_pos, page_width, first_line_y=(page_height - scaled_width - 90))
-        except Exception as e:
-            print(f"Error processing image {day_num}: {e}")
-        draw_video_footer_lines(c, page_width, day_num)
-        c.showPage()
+        create_image_page(c, page_width, page_height, image_file, scaled_width, x_pos, titles, day_num, image_dir)
         if include_video:
             create_video_page(c, script_dir, page_width, page_height, image_file, scaled_width, x_pos, os.path.join(script_dir, "video_images"), titles)
 
