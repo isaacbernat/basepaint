@@ -5,10 +5,11 @@ The main goal of this repository is to be a set of scripts to create an archive 
 The archive is available in PDF form there:
 
 - [Artworks from 001 to 100 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0001_to_0100.pdf)
-- [Artworks from 101 to 200 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0101_to_0200.pdf) 
-- [Artworks from 201 to 300 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0201_to_0300.pdf) 
-- [Artworks from 301 to 400 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0301_to_0400.pdf) 
-- [Artworks from 401 to 500 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0401_to_0500.pdf) 
+- [Artworks from 101 to 200 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0101_to_0200.pdf)
+- [Artworks from 201 to 300 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0201_to_0300.pdf)
+- [Artworks from 301 to 400 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0301_to_0400.pdf)
+- [Artworks from 401 to 500 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0401_to_0500.pdf)
+- [Artworks from 501 to 600 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0501_to_0600.pdf)
 
 ## Extended PDF edition
 An extended PDF version is available, with twice as many pages as the Standard Edition. Every other page includes 12 thumbnails from the 24 hour creation process of each basepaint artwork. A sample follows:
@@ -20,13 +21,14 @@ An extended PDF version is available, with twice as many pages as the Standard E
 - [Artworks with WIP from 201 to 300 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0201_to_0300_with_WIP.pdf)
 - [Artworks with WIP from 301 to 400 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0301_to_0400_with_WIP.pdf)
 - [Artworks with WIP from 401 to 500 in PDF](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0401_to_0500_with_WIP.pdf)
+- _"Artworks with WIP from 501"_ PDF and beyond are unavailable. It would exceed GitHub's git lfs quota for free repositories. If you are interested, you'll need to clone this repo (or preferably [basepaint-media](https://github.com/isaacbernat/basepaint-media)) and generate them on your own.
 
 ## PDF Cover
 There's a custom made cover that is suitable for both PDF editions. It contains useful statistics on most popular colours
 
 [![Cover preview](https://github.com/isaacbernat/basepaint-media/blob/main/preview.png)](https://github.com/isaacbernat/basepaint-media/blob/main/basepaint_archive_0000_cover.pdf)
 
-- [Cover for artworks and stats till 500](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0000_cover.pdf)
+- [Cover for artworks and stats till 600](https://github.com/isaacbernat/basepaint-media/blob/main/pdf/basepaint_archive_0000_cover.pdf)
 
 # Howto
 1. Clone the repository: `git clone git@github.com:isaacbernat/basepaint.git`
@@ -44,6 +46,8 @@ There's a custom made cover that is suitable for both PDF editions. It contains 
     - `metadata.csv`: csv file containing metadata for each image.
     - `videos/`: directory containing the videos in mp4 format. They condense the 24h process of creating the image.
     - `video_images/`: directory containing images in jpg format extracted from videos. Needed for the mosaic of Work In Progress pages that accompany each image in the pdf version.
+5. To create the **cover** (`-c`) and/or the **extended PDFs** with video previews (`-v`) use the appropriate parameters.
+    - E.g. `python3 create_archive.py -c -v`
 
 # About
 This archive is a non-commercial, community-driven project intended for educational and historical purposes. It is **not** officially endorsed by the BasePaint team. Every effort has been made to respect the collaborative nature of BasePaint and the potential copyrights of individual creators.
