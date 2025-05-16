@@ -11,6 +11,7 @@ from PIL import Image
 
 from video_to_images import extract_images_from_video
 from config import ARCHIVE_VERSION
+from image_description import create_description_pdf
 
 
 def load_titles(csv_path):
@@ -282,7 +283,7 @@ def create_cover(script_dir, size, image_files):
     c.save()
 
 
-def create_pdf(batch_size=100, add_cover=True, include_video=False):
+def create_pdf(batch_size=100, add_cover=True, include_video=False, include_description=False):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     titles = load_titles('metadata.csv')
     load_fonts()
@@ -295,4 +296,6 @@ def create_pdf(batch_size=100, add_cover=True, include_video=False):
             size=A4,
             image_files=image_files,
         )
+    if include_description:
+        create_description_pdf()
     print("Finish creating PDF.")
