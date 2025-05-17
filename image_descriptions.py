@@ -1,10 +1,13 @@
 import os
 from PIL import Image
+import google.generativeai as genai
+import csv
+from config import GOOGLE_API_KEY, GEMINI_MODEL
 
 
 def create_description_pdf(batch_size=100):
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    create_reduced_images(script_dir, block_size=2)
+    describe_png_images_to_csv(script_dir)
 
 
 def create_reduced_images(script_dir, block_size, output_format="png"):
@@ -56,3 +59,27 @@ def create_reduced_images(script_dir, block_size, output_format="png"):
         except Exception as e:
             print(f"An error occurred: {e}")
             return None
+
+
+def describe_png_images_to_csv(script_dir):
+    genai.configure(api_key=GOOGLE_API_KEY)
+    model = genai.GenerativeModel(GEMINI_MODEL)
+
+    reduced_dir = os.path.join(script_dir, "reduced_images")
+    description_csv = os.path.join(script_dir, "description.csv")
+
+    with open(description_csv, 'w', newline='', encoding='utf-8') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(['filename', 'analysis'])
+
+        for filename in os.listdir(reduced_dir):
+            if filename.endswith(".png"):
+                image_path = os.path.join(reduced_dir, filename)
+                # img = open(image_path, 'rb').read()
+                img = Image.open(image_path)
+                response = model.generate_content([
+                    # TODO move (and improve) description to config.py
+                    "Analiza detalladamente esta imagen de pixel art e identifica todos los elementos destacables que puedan ser referencias a memes conocidos, personajes de videojuegos, o elementos culturales populares. Describe brevemente cada elemento.",
+                    img
+                ])
+                csv_writer.writerow([description_csv, response.candidates[0].content.parts[0].text])

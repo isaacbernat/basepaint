@@ -11,7 +11,7 @@ from PIL import Image
 
 from video_to_images import extract_images_from_video
 from config import ARCHIVE_VERSION
-from image_description import create_description_pdf
+from image_descriptions import create_description_pdf
 
 
 def load_titles(csv_path):
