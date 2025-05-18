@@ -1,7 +1,9 @@
 import os
-from PIL import Image
-import google.generativeai as genai
 import csv
+from PIL import Image
+
+import google.generativeai as genai
+
 from config import GOOGLE_API_KEY, GEMINI_MODEL
 
 
@@ -61,25 +63,43 @@ def create_reduced_images(script_dir, block_size, output_format="png"):
             return None
 
 
+def analyze_image_with_metadata(model, image_path, title_text):
+    res = ""
+    # TODO move (and improve) description to config.py.
+    prompt_text = f"Analize in detail this pixel art image from basepaint.xyz project.{title_text} Identify all notable elements with emphasis to known meme references, including cultural, popular and other references too. Highlight each reference in bullet points. Sort the ouput text according to their relevance, for example, the size in pixels relative to the other references or in case of tie, which one is closer to the top and left corner"
+    try:
+        img = Image.open(image_path)
+        response = model.generate_content([prompt_text, img])
+        res = response.candidates[0].content.parts[0].text
+    except Exception as e:
+        print(f"Error during analysis of image {image_path}: {e}")
+    finally:
+        return res
+
+
 def describe_png_images_to_csv(script_dir):
     genai.configure(api_key=GOOGLE_API_KEY)
     model = genai.GenerativeModel(GEMINI_MODEL)
-
     reduced_dir = os.path.join(script_dir, "reduced_images")
     description_csv = os.path.join(script_dir, "description.csv")
+    metadata_csv = os.path.join(script_dir, "metadata.csv")
 
-    with open(description_csv, 'w', newline='', encoding='utf-8') as csvfile:
+    existing_days = dict()
+    if os.path.exists(metadata_csv):  # Read existing days from CSV if it exists
+        with open(metadata_csv, 'r', newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            existing_days = {int(row['NUM']): {row['TITLE']} for row in reader}
+
+    mode = 'a' if existing_days else 'w'  # Open in append mode if file exists, write mode if it doesn't
+    with open(description_csv, mode, newline='') as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(['filename', 'analysis'])
 
         for filename in os.listdir(reduced_dir):
             if filename.endswith(".png"):
-                image_path = os.path.join(reduced_dir, filename)
-                # img = open(image_path, 'rb').read()
-                img = Image.open(image_path)
-                response = model.generate_content([
-                    # TODO move (and improve) description to config.py
-                    "Analiza detalladamente esta imagen de pixel art e identifica todos los elementos destacables que puedan ser referencias a memes conocidos, personajes de videojuegos, o elementos culturales populares. Describe brevemente cada elemento.",
-                    img
-                ])
-                csv_writer.writerow([description_csv, response.candidates[0].content.parts[0].text])
+                image_id = int(os.path.splitext(filename)[0])
+                title_text = existing_days.get(image_id, "")
+                if image_id % 10 == 0:
+                    print(f"Analyze image with metadata: {filename}")
+                csv_writer.writerow([image_id, analyze_image_with_metadata(model, os.path.join(reduced_dir, filename), title_text)])
+    print("Finished creating description csv.")
