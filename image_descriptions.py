@@ -1,10 +1,11 @@
 import os
 import csv
+from time import sleep
 from PIL import Image
 
 import google.generativeai as genai
 
-from config import GOOGLE_API_KEY, GEMINI_MODEL
+from config import GOOGLE_API_KEY, GEMINI_MODEL, GEMINI_SLEEP
 
 
 def create_description_pdf(batch_size=100):
@@ -73,22 +74,31 @@ def describe_png_images_to_csv(script_dir):
     description_csv = os.path.join(script_dir, "description.csv")
     metadata_csv = os.path.join(script_dir, "metadata.csv")
 
-    existing_days = dict()
-    if os.path.exists(metadata_csv):  # Read existing days from CSV if it exists
-        with open(metadata_csv, 'r', newline='') as csvfile:
+    metadata_days = dict()
+    if os.path.exists(metadata_csv):  # Read existing titles from CSV if it exists
+        with open(metadata_csv, "r", newline="") as csvfile:
             reader = csv.DictReader(csvfile)
-            existing_days = {int(row['NUM']): {row['TITLE']} for row in reader}
+            metadata_days = {int(row["NUM"]): {row["TITLE"]} for row in reader}
 
-    mode = 'a' if existing_days else 'w'  # Open in append mode if file exists, write mode if it doesn't
-    with open(description_csv, mode, newline='') as csvfile:
+    existing_ids = set()
+    if os.path.exists(description_csv):
+        with open(description_csv, "r", newline="") as csvfile:
+            reader = csv.DictReader(csvfile)
+            existing_ids = {int(row["filename"]) for row in reader}
+
+    with open(description_csv, "a", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(['filename', 'analysis'])
+        if not existing_ids:
+            csv_writer.writerow(["filename", "analysis"])
 
-        for filename in os.listdir(reduced_dir):
+        for filename in sorted(os.listdir(reduced_dir)):
             if filename.endswith(".png"):
                 image_id = int(os.path.splitext(filename)[0])
-                title_text = existing_days.get(image_id, "")
-                if image_id % 10 == 0:
-                    print(f"Analyze image with metadata: {filename}")
+                if image_id in existing_ids:
+                    continue
+                title_text = metadata_days.get(image_id, "")
                 csv_writer.writerow([image_id, analyze_image_with_metadata(model, os.path.join(reduced_dir, filename), title_text)])
+                if image_id % GEMINI_SLEEP[0] == 0:
+                    print(f"Analyzed image with metadata: {filename} . Sleeping {GEMINI_SLEEP[1]} secs to avoid rate limits.")
+                    sleep(GEMINI_SLEEP[1])
     print("Finished creating description csv.")
