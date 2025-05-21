@@ -6,11 +6,14 @@ from PIL import Image
 import google.generativeai as genai
 
 from config import GOOGLE_API_KEY, GEMINI_MODEL, GEMINI_SLEEP
+from fetch_metadata import load_titles
 
 
-def create_description_pdf(batch_size=100):
+def create_description_csv():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    describe_png_images_to_csv(script_dir)
+    titles = load_titles(os.path.join(script_dir, "metadata.csv"))
+    metadata_days = {int(k): v["title"] for k, v in titles.items()}
+    describe_png_images_to_csv(metadata_days, script_dir)
 
 
 def create_reduced_images(block_size=2, output_format="png"):
@@ -67,24 +70,20 @@ def analyze_image_with_metadata(model, image_path, title_text):
         return res
 
 
-def describe_png_images_to_csv(script_dir):
+def describe_png_images_to_csv(metadata_days, script_dir):
     genai.configure(api_key=GOOGLE_API_KEY)
     model = genai.GenerativeModel(GEMINI_MODEL)
     reduced_dir = os.path.join(script_dir, "reduced_images")
     description_csv = os.path.join(script_dir, "description.csv")
-    metadata_csv = os.path.join(script_dir, "metadata.csv")
-
-    metadata_days = dict()
-    if os.path.exists(metadata_csv):  # Read existing titles from CSV if it exists
-        with open(metadata_csv, "r", newline="") as csvfile:
-            reader = csv.DictReader(csvfile)
-            metadata_days = {int(row["NUM"]): {row["TITLE"]} for row in reader}
 
     existing_ids = set()
     if os.path.exists(description_csv):
         with open(description_csv, "r", newline="") as csvfile:
             reader = csv.DictReader(csvfile)
-            existing_ids = {int(row["filename"]) for row in reader}
+            try:
+                existing_ids = {int(row["filename"]) for row in reader}
+            except Exception as e:
+                print(f"Error reading description csv: {e}")
 
     with open(description_csv, "a", newline="") as csvfile:
         csv_writer = csv.writer(csvfile)
@@ -97,8 +96,25 @@ def describe_png_images_to_csv(script_dir):
                 if image_id in existing_ids:
                     continue
                 title_text = metadata_days.get(image_id, "")
-                csv_writer.writerow([image_id, analyze_image_with_metadata(model, os.path.join(reduced_dir, filename), title_text)])
+                description = analyze_image_with_metadata(model, os.path.join(reduced_dir, filename), title_text)
+                if description:
+                    for d in description.split("\n"):
+                        csv_writer.writerow([image_id, d.strip("*   ")])
                 if image_id % GEMINI_SLEEP[0] == 0:
                     print(f"Analyzed image with metadata: {filename} . Sleeping {GEMINI_SLEEP[1]} secs to avoid rate limits.")
                     sleep(GEMINI_SLEEP[1])
     print("Finished creating description csv.")
+
+
+def create_description_page(canvas, script_dir, page_width, page_height, scaled_width, x_pos, titles, day_num, descriptions):
+    title_data = titles.get(int(day_num), {'title': ''})
+    title = f"Day {day_num}: {title_data['title']}"
+    canvas.setFont("MekSans-Regular", 24)
+    canvas.drawString(x_pos, page_height - 55, title)
+    canvas.setFont("OpenSans-Italic", 12)  # Italic for descriptive part
+    canvas.drawString(x_pos, page_height - 55, f"Description by {GEMINI_MODEL}")
+
+    # TODO implement description    
+    # description_lines = descriptions.get(int(day_num), "")
+    # for line_num, l in enumerate(description_lines.split("\n")):
+    #     canvas.drawString(x_pos, page_height - 55 - line_num * 12, l)

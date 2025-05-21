@@ -71,3 +71,19 @@ def create_metadata_csv(max_day: int):
                 print(f"Error processing Day {day}: {str(e)}")
     print(f"Skipped days (already in CSV): {skipped_days}")
     print("Finished creating metadata csv.")
+
+
+def load_titles(csv_path):
+    titles = {}
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            titles[int(row['NUM'])] = {
+                'title': row['TITLE'],
+                'palette': [tuple(map(int, color.strip().split(','))) for color in row['PALETTE'].split(';')],
+                'minted': row.get('MINTED', 0),
+                'artists': row.get('ARTISTS', 0),
+                'proposer': row.get('PROPOSER', ''),
+                'MINT_DATE': row.get('MINT_DATE', ''),
+            }
+    return titles

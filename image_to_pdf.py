@@ -11,23 +11,17 @@ from PIL import Image
 
 from video_to_images import extract_images_from_video
 from config import ARCHIVE_VERSION
-from image_descriptions import create_description_pdf
+from image_descriptions import create_description_page
+from fetch_metadata import load_titles
 
 
-def load_titles(csv_path):
-    titles = {}
+def load_descriptions(csv_path):
+    descriptions = defaultdict(list)
     with open(csv_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            titles[int(row['NUM'])] = {
-                'title': row['TITLE'],
-                'palette': [tuple(map(int, color.strip().split(','))) for color in row['PALETTE'].split(';')],
-                'minted': row.get('MINTED', 0),
-                'artists': row.get('ARTISTS', 0),
-                'proposer': row.get('PROPOSER', ''),
-                'MINT_DATE': row.get('MINT_DATE', ''),
-            }
-    return titles
+            descriptions[int(row['filename'])].append(row['analysis'])
+    return descriptions
 
 
 def count_pixels(image_path, palette):
@@ -229,11 +223,14 @@ def create_image_page(c, page_width, page_height, image_file, scaled_width, x_po
     c.showPage()
 
 
-def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video=False):
+def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video=False, include_description=False):
     image_dir = os.path.join(script_dir, "images")
     image_files = sorted([f for f in os.listdir(image_dir) if f.endswith('.jpg')])
     pdf_dir = os.path.join(script_dir, "pdf")
     os.makedirs(pdf_dir, exist_ok=True)  # Create pdf directory if needed
+    descriptions = {}
+    if include_description:
+        descriptions = load_descriptions(os.path.join(script_dir, "description.csv"))
 
     page_width, page_height = size
     for page_num, image_file in enumerate(image_files, 1):  # Process each image
@@ -252,6 +249,8 @@ def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video
         create_image_page(c, page_width, page_height, image_file, scaled_width, x_pos, titles, day_num, image_dir)
         if include_video:
             create_video_page(c, script_dir, page_width, page_height, image_file, scaled_width, x_pos, os.path.join(script_dir, "video_images"), titles)
+        if include_description:
+            create_description_page(c, script_dir, page_width, page_height, scaled_width, x_pos, titles, day_num, descriptions)
 
         if page_num % batch == 0:
             c.save()
@@ -287,7 +286,8 @@ def create_pdf(batch_size=100, add_cover=True, include_video=False, include_desc
     script_dir = os.path.dirname(os.path.abspath(__file__))
     titles = load_titles('metadata.csv')
     load_fonts()
-    create_pdf_from_images(script_dir, titles, size=A4, batch=batch_size, include_video=include_video)
+    return
+    create_pdf_from_images(script_dir, titles, size=A4, batch=batch_size, include_video=include_video, include_description=include_description)
     if add_cover:
         img_dir = os.path.join(script_dir, "images")
         image_files = sorted([f for f in os.listdir(img_dir) if f.endswith('.jpg')])
@@ -296,6 +296,4 @@ def create_pdf(batch_size=100, add_cover=True, include_video=False, include_desc
             size=A4,
             image_files=image_files,
         )
-    if include_description:
-        create_description_pdf()
     print("Finish creating PDF.")
