@@ -6,7 +6,7 @@ from PIL import Image
 import google.generativeai as genai
 
 from config import GOOGLE_API_KEY, GEMINI_MODEL, GEMINI_SLEEP
-from fetch_metadata import load_titles
+from fetch_metadata import load_titles, draw_header
 
 
 def create_description_csv():
@@ -57,9 +57,10 @@ def create_reduced_images(block_size=2, output_format="png"):
 
 
 def analyze_image_with_metadata(model, image_path, title_text):
+    prompt_text = f"Analyze in detail all the elements of this pixel art image from basepaint.xyz project.{title_text} Take into account the color palette and resolution limitations. Identify all notable elements with emphasis on Internet memes, but mind tv, anime, games, comic, culture and other references too."
+    prompt_text += " Sort the elements according to their relevance. The bigger ones should be more prominent. In case of a tie, sort them by position (the ones on top and left should be first)."
+    prompt_text += " Output format should be one line for each element as follows: `(X,Y) <element>: <description>`. Do not include any text that doesn't comply with this format. (X,Y) represents the central pixel coordinate where the element is located."
     res = ""
-    # TODO move (and improve) description to config.py.
-    prompt_text = f"Analize in detail this pixel art image from basepaint.xyz project.{title_text} Identify all notable elements with emphasis to Internet meme references, including cultural, popular, tv, games and other too. Highlight each reference in bullet points. No need to start the answer with an introduction, just sort the ouput bullet points according to the image positions, starting from top and left corner. You may include a list with the lest prominent elements at the end of the message, under their own bullet point."
     try:
         img = Image.open(image_path)
         response = model.generate_content([prompt_text, img])
@@ -106,15 +107,24 @@ def describe_png_images_to_csv(metadata_days, script_dir):
     print("Finished creating description csv.")
 
 
-def create_description_page(canvas, script_dir, page_width, page_height, scaled_width, x_pos, titles, day_num, descriptions):
-    title_data = titles.get(int(day_num), {'title': ''})
-    title = f"Day {day_num}: {title_data['title']}"
-    canvas.setFont("MekSans-Regular", 24)
-    canvas.drawString(x_pos, page_height - 55, title)
-    canvas.setFont("OpenSans-Italic", 12)  # Italic for descriptive part
-    canvas.drawString(x_pos, page_height - 55, f"Description by {GEMINI_MODEL}")
+def create_description_page(canvas, page_width, page_height, x_pos, day_num, descriptions):
+    title_data = {
+        'title': "",
+        'palette': "",
+    }
+    draw_header(canvas, int(day_num), title_data, x_pos, page_height, page_width)
+    canvas.setFont("OpenSans-Regular", 14)
+    canvas.drawString(x_pos + 100, page_height - 54, f"Description by {GEMINI_MODEL}")
 
-    # TODO implement description    
-    # description_lines = descriptions.get(int(day_num), "")
-    # for line_num, l in enumerate(description_lines.split("\n")):
-    #     canvas.drawString(x_pos, page_height - 55 - line_num * 12, l)
+    canvas.setFont("OpenSans-Regular", 10)
+    for line_num, l in enumerate(descriptions.get(int(day_num), [])):
+        if ":" in l:
+            label, value = l.split(":", 1)
+            canvas.setFont("OpenSans-Bold", 10)
+            canvas.drawString(x_pos, page_height - 85 - line_num * 12, f"- {label.strip()}: ")
+            canvas.setFont("OpenSans-Regular", 10)
+            label_width = canvas.stringWidth(f"- {label.strip()}: ", "OpenSans-Bold", 10)
+            canvas.drawString(x_pos + label_width, page_height - 85 - line_num * 12, value.strip())
+        else:
+            canvas.drawString(x_pos, page_height - 85 - line_num * 12, f"- {l}")
+    canvas.showPage()

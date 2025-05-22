@@ -87,3 +87,21 @@ def load_titles(csv_path):
                 'MINT_DATE': row.get('MINT_DATE', ''),
             }
     return titles
+
+
+def draw_header(canvas, day_num, titles, x_pos, page_height, page_width):
+    title_data = titles.get(day_num, {'title': '', 'palette': []})
+    title = f"Day {day_num}: {title_data['title']}"
+    canvas.setFont("MekSans-Regular", 24)
+    canvas.drawString(x_pos, page_height - 55, title)
+    
+    square_size = canvas.stringWidth("o", "MekSans-Regular", 24)
+    square_spacing = square_size * 1.2  # Add some spacing between squares
+    palette = title_data['palette']
+    total_palette_width = len(palette) * square_spacing
+    start_x = page_width - x_pos - total_palette_width
+    
+    for i, color in enumerate(palette):
+        canvas.setFillColorRGB(color[0]/255, color[1]/255, color[2]/255)
+        canvas.rect(start_x + (i * square_spacing), page_height - 50 - square_size/2, 10, 10, fill=1, stroke=1)  # stroke=1 to draw the border
+    canvas.setFillColorRGB(0, 0, 0)  # Reset fill color to black for subsequent text
