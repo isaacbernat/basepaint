@@ -4,7 +4,7 @@ from fetch_files import fetch_files
 from fetch_metadata import create_metadata_csv
 from enrich_metadata import enrich_metadata_csv
 from image_to_pdf import create_pdf
-from image_descriptions import create_reduced_images
+from image_descriptions import create_reduced_images, create_description_csv
 from config import LATEST, BATCH_SIZE, CREATE_COVER, INCLUDE_VIDEO, INCLUDE_DESCRIPTION
 
 
@@ -19,6 +19,9 @@ if __name__ == '__main__':
     fetch_files(LATEST, "images")
     create_metadata_csv(LATEST)
     enrich_metadata_csv()
-    fetch_files(LATEST, "videos")
-    create_reduced_images()
+    if args.include_video:
+        fetch_files(LATEST, "videos")
+    if args.include_description:
+        create_reduced_images()
+        create_description_csv()
     create_pdf(BATCH_SIZE, args.create_cover, args.include_video, args.include_description)

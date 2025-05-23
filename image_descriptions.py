@@ -1,5 +1,6 @@
 import os
 import csv
+import re
 from time import sleep
 from PIL import Image
 
@@ -108,23 +109,23 @@ def describe_png_images_to_csv(metadata_days, script_dir):
 
 
 def create_description_page(canvas, page_width, page_height, x_pos, day_num, descriptions):
-    title_data = {
-        'title': "",
-        'palette': "",
-    }
-    draw_header(canvas, int(day_num), title_data, x_pos, page_height, page_width)
+    draw_header(canvas, int(day_num), {"title": "", "palette": ""}, x_pos, page_height, page_width)
     canvas.setFont("OpenSans-Regular", 14)
     canvas.drawString(x_pos + 100, page_height - 54, f"Description by {GEMINI_MODEL}")
+    canvas.setFont("OpenSans-Bold", 10)
+    canvas.drawString(x_pos + 4, page_height - 85 + 12, "(X, Y)")
 
     canvas.setFont("OpenSans-Regular", 10)
+    coord_regex = r"\((\d+),\s*(\d+)\)"
     for line_num, l in enumerate(descriptions.get(int(day_num), [])):
-        if ":" in l:
-            label, value = l.split(":", 1)
-            canvas.setFont("OpenSans-Bold", 10)
-            canvas.drawString(x_pos, page_height - 85 - line_num * 12, f"- {label.strip()}: ")
-            canvas.setFont("OpenSans-Regular", 10)
-            label_width = canvas.stringWidth(f"- {label.strip()}: ", "OpenSans-Bold", 10)
-            canvas.drawString(x_pos + label_width, page_height - 85 - line_num * 12, value.strip())
-        else:
-            canvas.drawString(x_pos, page_height - 85 - line_num * 12, f"- {l}")
+        x, y = [int(m) for m in re.search(coord_regex, l).groups()]
+        canvas.drawString(x_pos, page_height - 85 - line_num * 12, f"({x},{y})")
+
+        label, value = l.split(")", 1)[1].strip().split(":", 1)
+        canvas.setFont("OpenSans-Bold", 10)
+        canvas.drawString(x_pos + 35, page_height - 85 - line_num * 12, f"{label.strip()}: ")
+        canvas.setFont("OpenSans-Regular", 10)
+        label_width = canvas.stringWidth(f"{label.strip()}: ", "OpenSans-Bold", 10)
+        canvas.drawString(x_pos + 35 + label_width, page_height - 85 - line_num * 12, value.strip())
+
     canvas.showPage()
