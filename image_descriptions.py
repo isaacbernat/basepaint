@@ -60,7 +60,7 @@ def create_reduced_images(block_size=2, output_format="png"):
 def analyze_image_with_metadata(model, image_path, title_text):
     prompt_text = f"Analyze in detail all the elements of this pixel art image from basepaint.xyz project.{title_text} Take into account the color palette and resolution limitations. Identify all notable elements with emphasis on Internet memes, but mind tv, anime, games, comic, culture and other references too."
     prompt_text += " Sort the elements according to their relevance. The bigger ones should be more prominent. In case of a tie, sort them by position (the ones on top and left should be first)."
-    prompt_text += " Output format should be one line for each element as follows: `(X,Y) <element>: <description>`. Do not include any text that doesn't comply with this format. (X,Y) represents the central pixel coordinate where the element is located."
+    prompt_text += " Output format should be one line for each element as follows: `(X,Y) <element>: <description>`, considering that images are square and 0,0 represents top left corner and 100,100 bottom right corner. (X,Y) represents the central pixel coordinate where the element is located. Also do not include any output that doesn't comply with this format."
     res = ""
     try:
         img = Image.open(image_path)
@@ -109,23 +109,72 @@ def describe_png_images_to_csv(metadata_days, script_dir):
 
 
 def create_description_page(canvas, page_width, page_height, x_pos, day_num, descriptions):
+    current_description = descriptions.get(int(day_num))
+    if not current_description:
+        print(f"No description found for day {day_num}")
+        return
     draw_header(canvas, int(day_num), {"title": "", "palette": ""}, x_pos, page_height, page_width)
     canvas.setFont("OpenSans-Regular", 14)
     canvas.drawString(x_pos + 100, page_height - 54, f"Description by {GEMINI_MODEL}")
+
+    render_description_text(canvas, page_width, page_height, x_pos, day_num, current_description)
+    draw_description_grid(canvas, page_width, page_height, x_pos, day_num, current_description)
+    canvas.showPage()
+
+
+def render_description_text(canvas, page_width, page_height, x_pos, day_num, descriptions):
+    # TODO: vocabulary to delete from descriptions... Large, small, medium. Larger, Smaller, pixel art. Left, Right, top bottom, top left, etc. "depiction of" "representation of" 
     canvas.setFont("OpenSans-Bold", 10)
     canvas.drawString(x_pos + 4, page_height - 85 + 12, "(X, Y)")
-
     canvas.setFont("OpenSans-Regular", 10)
-    coord_regex = r"\((\d+),\s*(\d+)\)"
-    for line_num, l in enumerate(descriptions.get(int(day_num), [])):
+    coord_regex = r"\((\d+)\.*\d*,\s*(\d+)\.*\d*\)"  # LLMs sometimes use decimals -_-
+    max_value = 0
+    for line_num, l in enumerate(descriptions):
         x, y = [int(m) for m in re.search(coord_regex, l).groups()]
-        canvas.drawString(x_pos, page_height - 85 - line_num * 12, f"({x},{y})")
 
-        label, value = l.split(")", 1)[1].strip().split(":", 1)
+        max_value = max(max_value, x, y)
+        canvas.drawString(x_pos, page_height - 85 - line_num * 12, f"({x},{y})")
+        try:
+            label, value = l.split(")", 1)[1].strip().split(":", 1)
+        except:  # LLMs don't always follow the required format -_-
+            value = l.split(")", 1)[1].strip()
+            label = ""
+
         canvas.setFont("OpenSans-Bold", 10)
         canvas.drawString(x_pos + 35, page_height - 85 - line_num * 12, f"{label.strip()}: ")
         canvas.setFont("OpenSans-Regular", 10)
         label_width = canvas.stringWidth(f"{label.strip()}: ", "OpenSans-Bold", 10)
         canvas.drawString(x_pos + 35 + label_width, page_height - 85 - line_num * 12, value.strip())
+    if max_value > 100:
+        print(f"DEBUG: {day_num} max value {max_value}")  # LLMs don't always follow restrictions -_-
 
-    canvas.showPage()
+
+def draw_description_grid(canvas, page_width, page_height, x_pos, day_num, descriptions):
+    # TODO render description image
+    filled_page = 85 + ((len(descriptions) + 1) * 12)
+    square_size = min(page_height - filled_page, page_width - (x_pos * 2))
+    small_square_size = square_size / 10
+    square_x_pos = (page_width - square_size) / 2
+
+    canvas.setFont("OpenSans-Regular", 8)
+    for i in range(10):
+        for j in range(10):
+            canvas.rect(  # Draw grid lines
+                square_x_pos + (j * small_square_size),  # x position
+                i * small_square_size + 12,  # y position
+                small_square_size,  # width
+                small_square_size,  # height
+                fill=0  # draw outline
+            )
+            if i == 0:  # Draw X coordinate number at top
+                canvas.drawString(
+                    square_x_pos + (j * small_square_size),  # center horizontally
+                    square_size + 2  + 12,  # position above grid
+                    str(j * 10)
+            )
+            if j == 0:  # Draw Y coordinate number at right
+                canvas.drawString(
+                    square_x_pos + square_size + 2,  # position to the right of grid
+                    i * small_square_size  + 12,  # center vertically
+                    str(100 - i * 10)
+                )
