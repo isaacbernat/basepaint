@@ -6,7 +6,7 @@ from PIL import Image
 
 import google.generativeai as genai
 
-from config import GOOGLE_API_KEY, GEMINI_MODEL, GEMINI_SLEEP
+from config import GOOGLE_API_KEY, GEMINI_MODEL, GEMINI_SLEEP, ARCHIVE_VERSION
 from fetch_metadata import load_titles, draw_header
 
 
@@ -115,7 +115,10 @@ def create_description_page(canvas, page_width, page_height, x_pos, day_num, des
         return
     draw_header(canvas, int(day_num), {"title": "", "palette": ""}, x_pos, page_height, page_width)
     canvas.setFont("OpenSans-Regular", 14)
-    canvas.drawString(x_pos + 100, page_height - 54, f"Description by {GEMINI_MODEL}")
+    description_label = f"Description version {ARCHIVE_VERSION}"
+    canvas.drawString(x_pos + 100, page_height - 54, description_label)
+    canvas.setFont("OpenSans-Italic", 14)
+    canvas.drawString(x_pos + 100 + canvas.stringWidth(description_label) + 20, page_height - 54, f"({GEMINI_MODEL})")
 
     render_description_text(canvas, page_width, page_height, x_pos, day_num, current_description)
     draw_description_grid(canvas, page_width, page_height, x_pos, day_num, current_description)
@@ -157,6 +160,16 @@ def draw_description_grid(canvas, page_width, page_height, x_pos, day_num, descr
     square_x_pos = (page_width - square_size) / 2
 
     canvas.setFont("OpenSans-Regular", 8)
+    canvas.drawString(
+        square_x_pos - 9,
+        square_size + 2  + 12,  # position above grid
+        "X="
+    )
+    canvas.drawString(
+        square_x_pos + square_size - 2,
+        square_size + 2  + 12,  # position above grid
+        "Y=0"
+    )
     for i in range(10):
         for j in range(10):
             canvas.rect(  # Draw grid lines
