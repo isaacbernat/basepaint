@@ -232,7 +232,7 @@ def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video
         if include_video:
             create_video_page(c, script_dir, page_width, page_height, image_file, scaled_width, x_pos, os.path.join(script_dir, "video_images"), titles)
         if include_description:
-            create_description_page(c, page_width, page_height, x_pos, day_num, descriptions)
+            create_description_page(c, script_dir, page_width, page_height, x_pos, day_num, descriptions)
 
         if page_num % batch == 0:
             c.save()

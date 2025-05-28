@@ -108,7 +108,7 @@ def describe_png_images_to_csv(metadata_days, script_dir):
     print("Finished creating description csv.")
 
 
-def create_description_page(canvas, page_width, page_height, x_pos, day_num, descriptions):
+def create_description_page(canvas, script_dir,page_width, page_height, x_pos, day_num, descriptions):
     current_description = descriptions.get(int(day_num))
     if not current_description:
         print(f"No description found for day {day_num}")
@@ -121,7 +121,7 @@ def create_description_page(canvas, page_width, page_height, x_pos, day_num, des
     canvas.drawString(x_pos + 100 + canvas.stringWidth(description_label) + 20, page_height - 54, f"({GEMINI_MODEL})")
 
     render_description_text(canvas, page_width, page_height, x_pos, day_num, current_description)
-    draw_description_grid(canvas, page_width, page_height, x_pos, day_num, current_description)
+    draw_description_grid(canvas, script_dir, page_width, page_height, x_pos, day_num, current_description)
     canvas.showPage()
 
 
@@ -152,12 +152,19 @@ def render_description_text(canvas, page_width, page_height, x_pos, day_num, des
         print(f"DEBUG: {day_num} max value {max_value}")  # LLMs don't always follow restrictions -_-
 
 
-def draw_description_grid(canvas, page_width, page_height, x_pos, day_num, descriptions):
-    # TODO render description image
+def draw_description_grid(canvas, script_dir, page_width, page_height, x_pos, day_num, descriptions):
     filled_page = 85 + ((len(descriptions) + 1) * 12)
     square_size = min(page_height - filled_page, page_width - (x_pos * 2))
     small_square_size = square_size / 10
     square_x_pos = (page_width - square_size) / 2
+
+    output_img = os.path.join(script_dir, "reduced_images", f"{day_num:04d}.png")
+    canvas.drawImage(
+        output_img,
+        square_x_pos,
+        12,
+        width=square_size,
+        height=square_size)
 
     canvas.setFont("OpenSans-Regular", 8)
     canvas.drawString(
