@@ -3,6 +3,7 @@ BATCH_SIZE = 100
 CREATE_COVER = False
 INCLUDE_VIDEO = False
 INCLUDE_DESCRIPTION = False
+EXCLUDE_IMAGES = False
 ARCHIVE_VERSION = "0.3.0"
 GOOGLE_API_KEY = "Replace with a valid Gemini API key in your GitHub repo secrets or locally"
 GEMINI_MODEL = "gemini-2.5-flash-preview-04-17"  #  [m for m in genai.list_models()] to check other available models
