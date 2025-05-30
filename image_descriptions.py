@@ -1,6 +1,7 @@
 import os
 import csv
 import re
+from collections import Counter
 from time import sleep
 from PIL import Image
 
@@ -108,7 +109,7 @@ def describe_png_images_to_csv(metadata_days, script_dir):
     print("Finished creating description csv.")
 
 
-def create_description_page(canvas, script_dir,page_width, page_height, x_pos, day_num, descriptions):
+def create_description_page(canvas, script_dir,page_width, page_height, x_pos, day_num, descriptions, titles, include_description_image, include_description_image_grid):
     current_description = descriptions.get(int(day_num))
     if not current_description:
         print(f"No description found for day {day_num}")
@@ -119,16 +120,19 @@ def create_description_page(canvas, script_dir,page_width, page_height, x_pos, d
     canvas.drawString(x_pos + 100, page_height - 54, description_label)
     canvas.setFont("OpenSans-Italic", 14)
     canvas.drawString(x_pos + 100 + canvas.stringWidth(description_label) + 20, page_height - 54, f"({GEMINI_MODEL})")
-
-    render_description_text(canvas, page_width, page_height, x_pos, day_num, current_description)
-    draw_description_grid(canvas, script_dir, page_width, page_height, x_pos, day_num, current_description)
+    render_description_text(canvas, page_height, x_pos, day_num, current_description, titles.get(day_num, {"title": ""})["title"])
+    if include_description_image:    
+        draw_description_grid(canvas, script_dir, page_width, page_height, x_pos, day_num, current_description, include_description_image_grid)
     canvas.showPage()
 
 
-def render_description_text(canvas, page_width, page_height, x_pos, day_num, descriptions):
-    # TODO: vocabulary to delete from descriptions... Large, small, medium. Larger, Smaller, pixel art. Left, Right, top bottom, top left, etc. "depiction of" "representation of" 
-    canvas.setFont("OpenSans-Bold", 10)
-    canvas.drawString(x_pos + 4, page_height - 85 + 12, "(X, Y)")
+def render_description_text(canvas, page_height, x_pos, day_num, descriptions, title):
+    canvas.setFont("OpenSans-Bold", 12)
+    canvas.drawString(x_pos, page_height - 85 + 12, f"(X, Y): {title}")
+    title_width = canvas.stringWidth(f"(X, Y): {title}", "OpenSans-Bold", 12)
+    canvas.setFont("OpenSans-Italic", 10)
+    canvas.drawString(x_pos + title_width + 2, page_height - 85 + 13, "(more info at https://github.com/isaacbernat/basepaint)")
+
     canvas.setFont("OpenSans-Regular", 10)
     coord_regex = r"\((\d+)\.*\d*,\s*(\d+)\.*\d*\)"  # LLMs sometimes use decimals -_-
     max_value = 0
@@ -149,10 +153,10 @@ def render_description_text(canvas, page_width, page_height, x_pos, day_num, des
         label_width = canvas.stringWidth(f"{label.strip()}: ", "OpenSans-Bold", 10)
         canvas.drawString(x_pos + 35 + label_width, page_height - 85 - line_num * 12, value.strip())
     if max_value > 100:
-        print(f"DEBUG: {day_num} max value {max_value}")  # LLMs don't always follow restrictions -_-
+        print(f"DEBUG: {day_num=}, {max_value=}")  # LLMs don't always follow restrictions -_-
 
 
-def draw_description_grid(canvas, script_dir, page_width, page_height, x_pos, day_num, descriptions):
+def draw_description_grid(canvas, script_dir, page_width, page_height, x_pos, day_num, descriptions, include_description_image_grid):
     filled_page = 85 + ((len(descriptions) + 1) * 12)
     square_size = min(page_height - filled_page, page_width - (x_pos * 2))
     small_square_size = square_size / 10
@@ -179,13 +183,14 @@ def draw_description_grid(canvas, script_dir, page_width, page_height, x_pos, da
     )
     for i in range(10):
         for j in range(10):
-            canvas.rect(  # Draw grid lines
-                square_x_pos + (j * small_square_size),  # x position
-                i * small_square_size + 12,  # y position
-                small_square_size,  # width
-                small_square_size,  # height
-                fill=0  # draw outline
-            )
+            if include_description_image_grid:
+                canvas.rect(  # Draw grid lines
+                    square_x_pos + (j * small_square_size),  # x position
+                    i * small_square_size + 12,  # y position
+                    small_square_size,  # width
+                    small_square_size,  # height
+                    fill=0  # draw outline
+                )
             if i == 0:  # Draw X coordinate number at top
                 canvas.drawString(
                     square_x_pos + (j * small_square_size),  # center horizontally

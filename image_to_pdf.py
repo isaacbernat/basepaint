@@ -205,7 +205,7 @@ def create_image_page(c, page_width, page_height, image_file, scaled_width, x_po
     c.showPage()
 
 
-def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video=False, include_description=False, exclude_images=False):
+def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video=False, include_description=False, exclude_images=False, include_description_image=False, include_description_image_grid=False):
     image_dir = os.path.join(script_dir, "images")
     image_files = sorted([f for f in os.listdir(image_dir) if f.endswith('.jpg')])
     pdf_dir = os.path.join(script_dir, "pdf")
@@ -233,7 +233,7 @@ def create_pdf_from_images(script_dir, titles, size=A4, batch=100, include_video
         if include_video:
             create_video_page(c, script_dir, page_width, page_height, image_file, scaled_width, x_pos, os.path.join(script_dir, "video_images"), titles)
         if include_description:
-            create_description_page(c, script_dir, page_width, page_height, x_pos, day_num, descriptions)
+            create_description_page(c, script_dir, page_width, page_height, x_pos, day_num, descriptions, titles, include_description_image, include_description_image_grid)
 
         if page_num % batch == 0:
             c.save()
@@ -265,11 +265,11 @@ def create_cover(script_dir, size, image_files):
     c.save()
 
 
-def create_pdf(batch_size=100, add_cover=True, include_video=False, include_description=False, exclude_images=False):
+def create_pdf(batch_size=100, add_cover=True, include_video=False, include_description=False, exclude_images=False, include_description_image=False, include_description_image_grid=False):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     titles = load_titles('metadata.csv')
     load_fonts()
-    create_pdf_from_images(script_dir, titles, size=A4, batch=batch_size, include_video=include_video, include_description=include_description, exclude_images=exclude_images)
+    create_pdf_from_images(script_dir, titles, size=A4, batch=batch_size, include_video=include_video, include_description=include_description, exclude_images=exclude_images, include_description_image=include_description_image, include_description_image_grid=include_description_image_grid)
     if add_cover:
         img_dir = os.path.join(script_dir, "images")
         image_files = sorted([f for f in os.listdir(img_dir) if f.endswith('.jpg')])
