@@ -137,7 +137,11 @@ def render_description_text(canvas, page_height, x_pos, day_num, descriptions, t
     coord_regex = r"\((\d+)\.*\d*,\s*(\d+)\.*\d*\)"  # LLMs sometimes use decimals -_-
     max_value = 0
     for line_num, l in enumerate(descriptions):
-        x, y = [int(m) for m in re.search(coord_regex, l).groups()]
+        try:
+            x, y = [int(m) for m in re.search(coord_regex, l).groups()]
+        except Exception as e:
+            print(f"DEBUG: {day_num=} doesn't match regex {l=}")
+            continue  # LLMs don't always follow explicit instructions on format...
 
         max_value = max(max_value, x, y)
         canvas.drawString(x_pos, page_height - 85 - line_num * 12, f"({x},{y})")
