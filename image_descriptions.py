@@ -1,7 +1,6 @@
 import os
 import csv
 import re
-from collections import Counter
 from time import sleep
 from PIL import Image
 
@@ -102,7 +101,7 @@ def describe_png_images_to_csv(metadata_days, script_dir):
                 description = analyze_image_with_metadata(model, os.path.join(reduced_dir, filename), title_text)
                 if description:
                     for d in description.split("\n"):
-                        csv_writer.writerow([image_id, d.strip("*   ")])
+                        csv_writer.writerow([image_id, d.strip().lstrip('*').strip()])
                 if image_id % GEMINI_SLEEP[0] == 0:
                     print(f"Analyzed image with metadata: {filename} . Sleeping {GEMINI_SLEEP[1]} secs to avoid rate limits.")
                     sleep(GEMINI_SLEEP[1])
