@@ -1,3 +1,4 @@
+from pydantic import BaseModel, Field
 import os
 import csv
 import re
@@ -10,16 +11,49 @@ from config import GOOGLE_API_KEY, GEMINI_MODEL, GEMINI_SLEEP, ARCHIVE_VERSION
 from fetch_metadata import load_titles, draw_header
 
 
+class PixelArtElement(BaseModel):
+    x: int = Field(description="Center X coordinate (0-100). 0=Left, 100=Right.")
+    y: int = Field(description="Center Y coordinate (0-100). 0=Top, 100=Bottom.")
+    label: str = Field(description="Name of the meme, character, object, place, element or cultural reference.")
+    description: str = Field(description="Detailed explanation of the reference and its significance.")
+    relevance_score: int = Field(description="1-10 score of how prominent this element is on the canvas.")
+
+
+class PixelArtAnalysis(BaseModel):
+    elements: list[PixelArtElement]
+
+
 class PixelArtAnalyzer:
     def __init__(self, api_key, model_id="gemini-3-flash-preview"):
-        self.client = genai.Client(api_key=api_key)
+        self.client = self.client = genai.Client(
+            api_key=api_key, 
+            http_options=types.HttpOptions(api_version='v1alpha'),  # a version which supports 'media_resolution' and 'thinking_level'
+        )
         self.model_id = model_id
+        self.model_behavior = 'You are an expert in Internet culture and pixel art, with focus on "Basepaint" collaborative canvases.'
+
+    @staticmethod
+    def _get_refined_prompt(title_text):
+        return f"""
+        ### ROLE
+        You are an expert in Internet culture, pixel art, and "Basepaint" collaborative canvases.
+        
+        ### TASK
+        Analyze the provided pixel art image: {title_text}. 
+        Identify every distinct element, stamp, and reference.
+        
+        ### CONTEXT & PRIORITIES
+        1. **Internet Culture:** Prioritize memes (Pepe, Wojak, Doge, etc.), crypto-culture, and viral trends.
+        2. **Pop Culture:** Identify anime characters, video game sprites, movies, tv, comic book, and real world references.
+        3. **Spatial Awareness:** Use the $100 \times 100$ grid logic. Small details matter.
+        4. **Sorting:** Order your findings by size and prominence. Large, central pieces first.
+        
+        ### DATA CONSTRAINTS
+        - Only identify elements clearly visible in the pixel art.
+        - If a reference is ambiguous, provide your best cultural guess.
+        """
 
     def analyze(self, image_path, metadata_title):
-        prompt = f"Analyze in detail all the elements of this pixel art image from basepaint.xyz project. {metadata_title} Take into account the color palette and resolution limitations. Identify all notable elements with emphasis on Internet memes, but mind tv, anime, games, comic, culture and other references too."
-        prompt += " Sort the elements according to their relevance. The bigger ones should be more prominent. In case of a tie, sort them by position (the ones on top and left should be first)."
-        prompt += " Output format should be one line for each element as follows: `(X,Y) <element>: <description>`, considering that images are square and 0,0 represents top left corner and 100,100 bottom right corner. (X,Y) represents the central pixel coordinate where the element is located. Also do not include any output that doesn't comply with this format."
-
         try:
             with open(image_path, "rb") as f:
                 image_bytes = f.read()
@@ -31,20 +65,21 @@ class PixelArtAnalyzer:
             )
 
             config = types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(
-                    thinking_level="HIGH"  # HIGH for coordinate accuracy
-                ),
-                temperature=1  # Could be lowered for consistency among runs
+                system_instruction=self.model_behavior,
+                response_mime_type="application/json",
+                response_schema=PixelArtAnalysis,
+                thinking_config=types.ThinkingConfig(thinking_level="HIGH"),  # HIGH for coordinate accuracy
+                temperature=1
             )
 
             response = self.client.models.generate_content(
                 model=self.model_id,
-                contents=[prompt, image_part],
+                contents=[self._get_refined_prompt(metadata_title), image_part],
                 config=config
             )
-            return response.text
+            return response.parsed
         except Exception as e:
-            print(f"AI Analysis Error for {image_path}: {e}")
+            print(f"AI Analysis Error {self.model_id=} for {image_path=}: {e=}")
             return ""
 
 
@@ -66,7 +101,7 @@ def describe_png_images_to_csv(metadata_days, script_dir, api_key=GOOGLE_API_KEY
 
         cnt = 0
         for filename in sorted(os.listdir(reduced_dir)):
-            if not filename.endswith(".png"):
+            if not filename.endswith(".png"):  # TODO use pathlib and glob
                 continue
 
             day_id = int(os.path.splitext(filename)[0])
@@ -75,15 +110,16 @@ def describe_png_images_to_csv(metadata_days, script_dir, api_key=GOOGLE_API_KEY
 
             print(f"Processing Day {day_id}...")
             title = metadata_days.get(day_id, "")
-            raw_result = analyzer.analyze(os.path.join(reduced_dir, filename), title)
-
-            if raw_result:
-                for line in raw_result.strip().split('\n'):
-                    clean_line = line.strip().lstrip('*').strip()  # Clean up common LLM markdown artifacts (asterisks)
-                    writer.writerow([day_id, clean_line])
+            # TODO: run this in parallel (asyncio/threadpool)
+            analysis_data = analyzer.analyze(os.path.join(reduced_dir, filename), title)
+            if analysis_data:
+                for item in analysis_data.elements:
+                    formatted_string = f"({item.x},{item.y}) {item.label}: {item.description}"
+                    writer.writerow([day_id, formatted_string])
+                    # TODO: consider new csv structure: writer.writerow([day_id, item.x, item.y, item.label, item.description])
                 cnt += 1
 
-            if cnt >= GEMINI_SLEEP["day"]:
+            if cnt >= GEMINI_SLEEP["day"]:  # TODO catch exception in addition to counting
                 print(f"MAX IMAGES analyzed for a single day {cnt}. Last image {filename=}")
                 return
 
