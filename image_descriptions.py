@@ -1,11 +1,19 @@
-from pydantic import BaseModel, Field
+import asyncio
 import os
 import csv
 import re
-from time import sleep
+
 from google import genai
 from google.genai import types
+from google.genai import errors
 from PIL import Image
+from pydantic import BaseModel, Field
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+    retry_if_exception_type
+)
 
 from config import GOOGLE_API_KEY, GEMINI_MODEL, GEMINI_SLEEP, ARCHIVE_VERSION
 from fetch_metadata import load_titles, draw_header
@@ -30,28 +38,62 @@ class PixelArtAnalyzer:
             http_options=types.HttpOptions(api_version='v1alpha'),  # a version which supports 'media_resolution' and 'thinking_level'
         )
         self.model_id = model_id
-        self.model_behavior = 'You are an expert in Internet culture and pixel art, with focus on "Basepaint" collaborative canvases.'
+        self.model_behavior = 'You are an expert in Internet culture and pixel art, with focus on "Basepaint.xyz" collaborative canvases.'
 
     @staticmethod
     def _get_refined_prompt(title_text):
         return f"""
         ### ROLE
         You are an expert in Internet culture, pixel art, and "Basepaint" collaborative canvases.
-        
+
         ### TASK
         Analyze the provided pixel art image: {title_text}. 
-        Identify every distinct element, stamp, and reference.
-        
+        Identify every distinct element, stamp, text and reference. There could be many!
+        Keep in mind that images have a very limited color palette.
+
         ### CONTEXT & PRIORITIES
         1. **Internet Culture:** Prioritize memes (Pepe, Wojak, Doge, etc.), crypto-culture, and viral trends.
-        2. **Pop Culture:** Identify anime characters, video game sprites, movies, tv, comic book, and real world references.
+        2. **Pop Culture:** Identify anime characters, video game sprites, movies, tv, comic, and real world references.
         3. **Spatial Awareness:** Use the $100 \times 100$ grid logic. Small details matter.
         4. **Sorting:** Order your findings by size and prominence. Large, central pieces first.
-        
+
         ### DATA CONSTRAINTS
         - Only identify elements clearly visible in the pixel art.
         - If a reference is ambiguous, provide your best cultural guess.
         """
+
+    @retry(
+        retry=retry_if_exception_type((errors.ClientError, errors.ServerError)),
+        wait=wait_random_exponential(multiplier=1, max=70),
+        stop=stop_after_attempt(8),
+        reraise=True,
+    )
+    async def analyze_image(self, image_path, metadata_title):
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+
+        image_part = types.Part.from_bytes(
+            data=image_bytes,
+            mime_type="image/png",
+            media_resolution=types.MediaResolution.MEDIA_RESOLUTION_HIGH  # pixel-level detail
+        )
+
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=PixelArtAnalysis,
+            thinking_config=types.ThinkingConfig(thinking_level="HIGH"),  # HIGH for coordinate accuracy
+            system_instruction=self.model_behavior,
+            temperature=1
+        )
+
+        response = await self.client.aio.models.generate_content(  # async
+            model="gemini-3-flash-preview",
+            contents=[self._get_refined_prompt(metadata_title), image_part],
+            config=config
+        )
+        ## print(f"DEBUG {response=}, {response.parsed=}")
+        return response.parsed
+
 
     def analyze(self, image_path, metadata_title):
         try:
@@ -78,28 +120,51 @@ class PixelArtAnalyzer:
                 config=config
             )
             return response.parsed
+        except errors.ClientError as e:
+            if e.code == 429:
+                print(f"[ERROR] too many requests {e.code=}. Set appropriate quotas and sleep {GEMINI_SLEEP=}. Re-reaising exception to shut down.")
+                raise e
+            else:
+                print(f"[ERROR] unexpected client error occurred {e.code=}. Debug info: {self.model_id=}, {image_path=}, {e=}")
         except Exception as e:
-            print(f"AI Analysis Error {self.model_id=} for {image_path=}: {e=}")
-            return ""
+            print(f"AI Analysis Error {self.model_id=} for {image_path=}: {e=}")  # TODO use proper logging instead of prints
 
 
-def describe_png_images_to_csv(metadata_days, script_dir, api_key=GOOGLE_API_KEY):
+async def worker(analyzer, semaphore, day_id, path, title, csv_writer, csv_lock):
+    async with semaphore:
+        print(f"-> Processing Day {day_id}...")
+        try:
+            result = await analyzer.analyze_image(path, title)
+            if result:
+                async with csv_lock:
+                    for el in result.elements:
+                        csv_writer.writerow([day_id, f"({el.x},{el.y}) {el.label}: {el.description}"])
+                return 1
+        except Exception as e:
+            print(f"!!! Day {day_id} FAILED permanently after retries: {e}")
+            return 0
+
+
+async def describe_png_images_to_csv(metadata_days, script_dir, api_key=GOOGLE_API_KEY):
     analyzer = PixelArtAnalyzer(api_key)
+    semaphore = asyncio.Semaphore(GEMINI_SLEEP.get("minute", 3))  # TODO, better constant name than sleep
+    csv_lock = asyncio.Lock()
+
     reduced_dir = os.path.join(script_dir, "reduced_images")
     csv_path = os.path.join(script_dir, "description.csv")
 
     existing_ids = set()  # Load existing to skip duplicates
     if os.path.exists(csv_path):
-        with open(csv_path, "r") as f:
+        with open(csv_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             existing_ids = {int(row["filename"]) for row in reader if row["filename"]}
 
-    with open(csv_path, "a", newline="") as csvfile:
-        writer = csv.writer(csvfile)
+    with open("description.csv", "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        tasks = []
         if not existing_ids:
-            writer.writerow(["filename", "analysis"])
+            writer.writerow(["filename", "analysis"])  # TODO don't hardcode headers here
 
-        cnt = 0
         for filename in sorted(os.listdir(reduced_dir)):
             if not filename.endswith(".png"):  # TODO use pathlib and glob
                 continue
@@ -108,31 +173,18 @@ def describe_png_images_to_csv(metadata_days, script_dir, api_key=GOOGLE_API_KEY
             if day_id in existing_ids:
                 continue
 
-            print(f"Processing Day {day_id}...")
-            title = metadata_days.get(day_id, "")
-            # TODO: run this in parallel (asyncio/threadpool)
-            analysis_data = analyzer.analyze(os.path.join(reduced_dir, filename), title)
-            if analysis_data:
-                for item in analysis_data.elements:
-                    formatted_string = f"({item.x},{item.y}) {item.label}: {item.description}"
-                    writer.writerow([day_id, formatted_string])
-                    # TODO: consider new csv structure: writer.writerow([day_id, item.x, item.y, item.label, item.description])
-                cnt += 1
+            path = os.path.join(reduced_dir, filename)
+            tasks.append(worker(analyzer, semaphore, day_id, path, metadata_days.get(day_id, 0), writer, csv_lock))
 
-            if cnt >= GEMINI_SLEEP["day"]:  # TODO catch exception in addition to counting
-                print(f"MAX IMAGES analyzed for a single day {cnt}. Last image {filename=}")
-                return
-
-            if cnt % GEMINI_SLEEP["minute"] == 0:
-                print(f"Analyzed image with metadata: {filename=}. Sleeping {60} secs to avoid rate limits.")
-                sleep(60)  # conservatively wait a whole minute
+        results = await asyncio.gather(*tasks)
+        print(f"Finished! Saved {sum(results)}/{len(tasks)} images.")
 
 
 def create_description_csv():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     titles = load_titles(os.path.join(script_dir, "metadata.csv"))
     metadata_days = {int(k): v["title"] for k, v in titles.items()}
-    describe_png_images_to_csv(metadata_days, script_dir)
+    asyncio.run(describe_png_images_to_csv(metadata_days, script_dir))
 
 
 def create_reduced_images(block_size=2, output_format="png"):
@@ -202,19 +254,19 @@ def render_description_text(canvas, page_height, x_pos, day_num, descriptions, t
     canvas.setFont("OpenSans-Regular", 10)
     coord_regex = r"\((\d+)\.*\d*,\s*(\d+)\.*\d*\)"  # LLMs sometimes use decimals -_-
     max_value = 0
-    for line_num, l in enumerate(descriptions):
+    for line_num, line in enumerate(descriptions):
         try:
-            x, y = [int(m) for m in re.search(coord_regex, l).groups()]
+            x, y = [int(m) for m in re.search(coord_regex, line).groups()]
         except Exception as e:
-            print(f"DEBUG: {day_num=} doesn't match regex {l=}")
+            print(f"DEBUG: {day_num=} probably doesn't match regex {line=}, {e=}")
             continue  # LLMs don't always follow explicit instructions on format...
 
         max_value = max(max_value, x, y)
         canvas.drawString(x_pos, page_height - 85 - line_num * 12, f"({x},{y})")
         try:
-            label, value = l.split(")", 1)[1].strip().split(":", 1)
-        except:  # LLMs don't always follow the required format -_-
-            value = l.split(")", 1)[1].strip()
+            label, value = line.split(")", 1)[1].strip().split(":", 1)
+        except Exception:  # TODO: cleanup, no needed since Pydantic (LLMs didn't always follow the required format -_-)
+            value = line.split(")", 1)[1].strip()
             label = ""
 
         canvas.setFont("OpenSans-Bold", 10)
