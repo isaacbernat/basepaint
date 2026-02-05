@@ -33,7 +33,7 @@ class PixelArtAnalysis(BaseModel):
 
 class PixelArtAnalyzer:
     def __init__(self, api_key, model_id="gemini-3-flash-preview"):
-        self.client = self.client = genai.Client(
+        self.client = genai.Client(
             api_key=api_key, 
             http_options=types.HttpOptions(api_version='v1alpha'),  # a version which supports 'media_resolution' and 'thinking_level'
         )
@@ -41,7 +41,7 @@ class PixelArtAnalyzer:
         self.model_behavior = 'You are an expert in Internet culture and pixel art, with focus on "Basepaint.xyz" collaborative canvases.'
 
     @staticmethod
-    def _get_refined_prompt(title_text):
+    def _get_refined_prompt(title_text):  # TODO sanitize title_text and/or use delimiters for the value to be treated as isolated untrusted data
         return f"""
         ### ROLE
         You are an expert in Internet culture, pixel art, and "Basepaint" collaborative canvases.
@@ -228,11 +228,7 @@ def render_description_text(canvas, page_height, x_pos, day_num, descriptions, t
 
         max_value = max(max_value, x, y)
         canvas.drawString(x_pos, page_height - 85 - line_num * 12, f"({x},{y})")
-        try:
-            label, value = line.split(")", 1)[1].strip().split(":", 1)
-        except Exception:  # TODO: cleanup, no needed since Pydantic (LLMs didn't always follow the required format -_-)
-            value = line.split(")", 1)[1].strip()
-            label = ""
+        label, value = line.split(")", 1)[1].strip().split(":", 1)
 
         canvas.setFont("OpenSans-Bold", 10)
         canvas.drawString(x_pos + 35, page_height - 85 - line_num * 12, f"{label.strip()}: ")
