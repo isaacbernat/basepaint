@@ -9,5 +9,5 @@ INCLUDE_DESCRIPTION_IMAGE_GRID = False
 ARCHIVE_VERSION = "0.3.2"
 GOOGLE_API_KEY = "Replace with a valid Gemini API key in your GitHub repo secrets or locally"
 GEMINI_MODEL = "gemini-3-flash-preview"  #  [m.name for m in genai.list_models()] to check other available models
-GEMINI_SLEEP = {"minute": 5, "day": 20}  # avoid exceeding 5 RPM quota, 20 RPD https://ai.google.dev/gemini-api/docs/rate-limits
+GEMINI_CALLS = {"max_concurrency": 5, "max_retries": 8, "max_backoff": 70}  # avoid exceeding 5 RPM quota, 20 RPD https://ai.google.dev/gemini-api/docs/rate-limits
 # Gemini usage metrics available at https://aistudio.google.com/usage?tab=rate-limit

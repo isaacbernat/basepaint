@@ -15,7 +15,7 @@ from tenacity import (
     retry_if_exception_type
 )
 
-from config import GOOGLE_API_KEY, GEMINI_MODEL, GEMINI_SLEEP, ARCHIVE_VERSION
+from config import GOOGLE_API_KEY, GEMINI_MODEL, GEMINI_CALLS, ARCHIVE_VERSION
 from fetch_metadata import load_titles, draw_header
 
 
@@ -64,8 +64,8 @@ class PixelArtAnalyzer:
 
     @retry(
         retry=retry_if_exception_type((errors.ClientError, errors.ServerError)),
-        wait=wait_random_exponential(multiplier=1, max=70),
-        stop=stop_after_attempt(8),
+        wait=wait_random_exponential(multiplier=1, max=(GEMINI_CALLS.get("max_backoff", 70))),
+        stop=stop_after_attempt(GEMINI_CALLS.get("max_retries", 5)),
         reraise=True,
     )
     async def analyze_image(self, image_path, metadata_title):
@@ -95,41 +95,6 @@ class PixelArtAnalyzer:
         return response.parsed
 
 
-    def analyze(self, image_path, metadata_title):
-        try:
-            with open(image_path, "rb") as f:
-                image_bytes = f.read()
-
-            image_part = types.Part.from_bytes(
-                data=image_bytes,
-                mime_type="image/png",
-                media_resolution=types.MediaResolution.MEDIA_RESOLUTION_HIGH  # pixel-level detail
-            )
-
-            config = types.GenerateContentConfig(
-                system_instruction=self.model_behavior,
-                response_mime_type="application/json",
-                response_schema=PixelArtAnalysis,
-                thinking_config=types.ThinkingConfig(thinking_level="HIGH"),  # HIGH for coordinate accuracy
-                temperature=1
-            )
-
-            response = self.client.models.generate_content(
-                model=self.model_id,
-                contents=[self._get_refined_prompt(metadata_title), image_part],
-                config=config
-            )
-            return response.parsed
-        except errors.ClientError as e:
-            if e.code == 429:
-                print(f"[ERROR] too many requests {e.code=}. Set appropriate quotas and sleep {GEMINI_SLEEP=}. Re-reaising exception to shut down.")
-                raise e
-            else:
-                print(f"[ERROR] unexpected client error occurred {e.code=}. Debug info: {self.model_id=}, {image_path=}, {e=}")
-        except Exception as e:
-            print(f"AI Analysis Error {self.model_id=} for {image_path=}: {e=}")  # TODO use proper logging instead of prints
-
-
 async def worker(analyzer, semaphore, day_id, path, title, csv_writer, csv_lock):
     async with semaphore:
         print(f"-> Processing Day {day_id}...")
@@ -141,13 +106,13 @@ async def worker(analyzer, semaphore, day_id, path, title, csv_writer, csv_lock)
                         csv_writer.writerow([day_id, f"({el.x},{el.y}) {el.label}: {el.description}"])
                 return 1
         except Exception as e:
-            print(f"!!! Day {day_id} FAILED permanently after retries: {e}")
+            print(f"!!! Day {day_id} FAILED permanently after retries: {e}")  # TODO use proper logging instead of prints
             return 0
 
 
 async def describe_png_images_to_csv(metadata_days, script_dir, api_key=GOOGLE_API_KEY):
     analyzer = PixelArtAnalyzer(api_key)
-    semaphore = asyncio.Semaphore(GEMINI_SLEEP.get("minute", 3))  # TODO, better constant name than sleep
+    semaphore = asyncio.Semaphore(GEMINI_CALLS.get("max_concurrency", 3))
     csv_lock = asyncio.Lock()
 
     reduced_dir = os.path.join(script_dir, "reduced_images")
